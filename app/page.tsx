@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import IsometricRoom from './components/IsometricRoom'
 import type { FurnitureItem, PlacedItem } from '../types'
 
-// Available furniture and decor items
+// Available furniture and decor items (matching Flutter assets)
 const AVAILABLE_ITEMS: FurnitureItem[] = [
   {
     id: 'couch',
@@ -29,28 +29,6 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     color: '#A0522D'
   },
   {
-    id: 'chair',
-    name: 'Chair',
-    category: 'furniture',
-    imageUrl: '/images/chair.png',
-    width: 1,
-    height: 1,
-    visualHeight: 2,
-    placementType: 'floor',
-    color: '#D2691E'
-  },
-  {
-    id: 'bed',
-    name: 'Bed',
-    category: 'furniture',
-    imageUrl: '/images/bed.png',
-    width: 1,
-    height: 1,
-    visualHeight: 2,
-    placementType: 'floor',
-    color: '#6495ED'
-  },
-  {
     id: 'bookshelf',
     name: 'Bookshelf',
     category: 'furniture',
@@ -60,39 +38,6 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     visualHeight: 3,
     placementType: 'floor',
     color: '#8B4513'
-  },
-  {
-    id: 'rug',
-    name: 'Rug',
-    category: 'decor',
-    imageUrl: '/images/rug.png',
-    width: 1,
-    height: 1,
-    visualHeight: 0.5,
-    placementType: 'floor',
-    color: '#B22222'
-  },
-  {
-    id: 'plant',
-    name: 'Plant',
-    category: 'decor',
-    imageUrl: '/images/plant.png',
-    width: 1,
-    height: 1,
-    visualHeight: 2,
-    placementType: 'floor',
-    color: '#228B22'
-  },
-  {
-    id: 'lamp',
-    name: 'Lamp',
-    category: 'decor',
-    imageUrl: '/images/lamp.png',
-    width: 1,
-    height: 1,
-    visualHeight: 2,
-    placementType: 'floor',
-    color: '#FFD700'
   },
   {
     id: 'desk',
@@ -115,6 +60,28 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     visualHeight: 2.5,
     placementType: 'floor',
     color: '#8B4513'
+  },
+  {
+    id: 'rug',
+    name: 'Rug',
+    category: 'decor',
+    imageUrl: '/images/rug.png',
+    width: 1,
+    height: 1,
+    visualHeight: 0.5,
+    placementType: 'floor',
+    color: '#B22222'
+  },
+  {
+    id: 'lamp',
+    name: 'Lamp',
+    category: 'decor',
+    imageUrl: '/images/lamp.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2,
+    placementType: 'floor',
+    color: '#FFD700'
   },
 ]
 
