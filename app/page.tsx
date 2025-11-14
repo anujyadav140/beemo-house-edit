@@ -160,10 +160,51 @@ export default function Home() {
       return AVAILABLE_ITEMS
     }
 
+    // Listen for messages from Flutter via window.postMessage
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+
+        switch (data.type) {
+          case 'SELECT_ITEM':
+            if (data.itemId) {
+              setSelectedItemType(data.itemId)
+            }
+            break
+          case 'CLEAR_SELECTION':
+            setSelectedItemType(null)
+            break
+          case 'CLEAR_ROOM':
+            setPlacedItems([])
+            break
+          case 'GET_ROOM_STATE':
+            // Send back the current state
+            window.postMessage(JSON.stringify({
+              type: 'ROOM_STATE_RESPONSE',
+              items: placedItems
+            }), '*')
+            break
+          case 'GET_AVAILABLE_ITEMS':
+            window.postMessage(JSON.stringify({
+              type: 'AVAILABLE_ITEMS_RESPONSE',
+              items: AVAILABLE_ITEMS
+            }), '*')
+            break
+        }
+      } catch (e) {
+        console.error('Error handling message:', e)
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+
     // Notify Flutter that the app is ready
-    if (typeof window !== 'undefined') {
-      // For Flutter WebView
+    setTimeout(() => {
       window.postMessage(JSON.stringify({ type: 'READY' }), '*')
+    }, 100)
+
+    return () => {
+      window.removeEventListener('message', handleMessage)
     }
   }, [placedItems])
 
