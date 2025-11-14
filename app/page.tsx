@@ -150,6 +150,7 @@ const sendToFlutter = (data: any) => {
 export default function Home() {
   const [placedItems, setPlacedItems] = useState<PlacedItem[]>([])
   const [selectedItemType, setSelectedItemType] = useState<string | null>(null)
+  const [isReady, setIsReady] = useState(false)
 
   // Expose functions to Flutter WebView
   useEffect(() => {
@@ -212,10 +213,12 @@ export default function Home() {
             // Load state sent from Flutter
             if (data.items && Array.isArray(data.items)) {
               setPlacedItems(data.items)
+              setIsReady(true)
+              console.log('✅ Loaded state from Flutter:', data.items.length, 'items')
             }
             if (data.currentRoom) {
               // Can be used to sync current room if needed
-              console.log('Current room:', data.currentRoom)
+              console.log('📍 Current room:', data.currentRoom)
             }
             break
         }
@@ -226,15 +229,17 @@ export default function Home() {
 
     window.addEventListener('message', handleMessage)
 
-    // Notify Flutter that the app is ready
-    setTimeout(() => {
-      sendToFlutter({ type: 'READY' })
-    }, 100)
+    // Notify Flutter that the app is ready (only once on mount)
+    if (!isReady) {
+      setTimeout(() => {
+        sendToFlutter({ type: 'READY' })
+      }, 100)
+    }
 
     return () => {
       window.removeEventListener('message', handleMessage)
     }
-  }, [placedItems])
+  }, []) // Empty dependency array - only run once on mount
 
   const handleAddItem = (itemId: string, x: number, y: number) => {
     const furnitureData = AVAILABLE_ITEMS.find(item => item.id === itemId)
