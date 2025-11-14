@@ -31,6 +31,15 @@ export default function IsometricRoom({
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [hoverTile, setHoverTile] = useState<{ x: number, y: number } | null>(null)
   const [loadedImages, setLoadedImages] = useState<Map<string, HTMLImageElement>>(new Map())
+  const [lastTapTime, setLastTapTime] = useState<number>(0)
+  const [lastTapPos, setLastTapPos] = useState<{ x: number, y: number } | null>(null)
+
+  // Zoom and pan state
+  const [zoom, setZoom] = useState<number>(1)
+  const [pan, setPan] = useState<{ x: number, y: number }>({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState<boolean>(false)
+  const [lastPinchDistance, setLastPinchDistance] = useState<number | null>(null)
+  const [panStart, setPanStart] = useState<{ x: number, y: number } | null>(null)
 
   // Load all furniture images
   useEffect(() => {
@@ -56,6 +65,33 @@ export default function IsometricRoom({
     })
   }, [availableItems])
 
+  // Calculate initial zoom to fit room on screen
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const handleResize = () => {
+      const canvas = canvasRef.current
+      if (!canvas) return
+
+      // Calculate room dimensions in screen space
+      const roomWidth = ROOM_SIZE * Math.cos(ISO_ANGLE) * TILE_SIZE * 2
+      const roomHeight = WALL_HEIGHT + ROOM_SIZE * Math.sin(ISO_ANGLE) * TILE_SIZE + 200
+
+      // Calculate zoom to fit with some padding
+      const zoomX = (canvas.offsetWidth * 0.9) / roomWidth
+      const zoomY = (canvas.offsetHeight * 0.9) / roomHeight
+      const initialZoom = Math.min(zoomX, zoomY, 1) // Don't zoom in more than 1x initially
+
+      setZoom(initialZoom)
+      setPan({ x: 0, y: 0 })
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   // Convert 3D world coordinates to 2D isometric screen coordinates
   const worldToScreen = (x: number, y: number, z: number = 0): { x: number, y: number } => {
     const canvas = canvasRef.current
@@ -69,9 +105,10 @@ export default function IsometricRoom({
     const offsetX = canvas.width / 2
     const offsetY = WALL_HEIGHT + 80 // Fixed offset from top to show walls
 
+    // Apply zoom and pan
     return {
-      x: screenX + offsetX,
-      y: screenY + offsetY
+      x: (screenX + offsetX) * zoom + pan.x,
+      y: (screenY + offsetY) * zoom + pan.y
     }
   }
 
@@ -83,8 +120,12 @@ export default function IsometricRoom({
     const offsetX = canvas.width / 2
     const offsetY = WALL_HEIGHT + 80
 
-    const x = (screenX - offsetX) / (Math.cos(ISO_ANGLE) * TILE_SIZE)
-    const y = (screenY - offsetY) / (Math.sin(ISO_ANGLE) * TILE_SIZE)
+    // Reverse zoom and pan
+    const adjustedX = (screenX - pan.x) / zoom
+    const adjustedY = (screenY - pan.y) / zoom
+
+    const x = (adjustedX - offsetX) / (Math.cos(ISO_ANGLE) * TILE_SIZE)
+    const y = (adjustedY - offsetY) / (Math.sin(ISO_ANGLE) * TILE_SIZE)
 
     const worldX = (x + y) / 2
     const worldY = (y - x) / 2
@@ -462,7 +503,7 @@ export default function IsometricRoom({
       }
     }
 
-  }, [placedItems, availableItems, hoverTile, selectedItemType, loadedImages])
+  }, [placedItems, availableItems, hoverTile, selectedItemType, loadedImages, zoom, pan])
 
   // Mouse event handlers
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -573,6 +614,196 @@ export default function IsometricRoom({
     }
   }
 
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+
+    // Zoom in/out with mouse wheel
+    const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1
+    const newZoom = Math.max(0.3, Math.min(3, zoom * zoomDelta))
+
+    // Zoom towards mouse position
+    const zoomRatio = newZoom / zoom
+    const newPanX = mouseX - (mouseX - pan.x) * zoomRatio
+    const newPanY = mouseY - (mouseY - pan.y) * zoomRatio
+
+    setZoom(newZoom)
+    setPan({ x: newPanX, y: newPanY })
+  }
+
+  // Touch event handlers for mobile support
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const canvas = canvasRef.current
+    if (!canvas || e.touches.length === 0) return
+
+    // Two-finger pinch to zoom
+    if (e.touches.length === 2) {
+      const touch1 = e.touches[0]
+      const touch2 = e.touches[1]
+      const distance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) +
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      )
+      setLastPinchDistance(distance)
+      setIsPanning(false)
+      setDraggedItem(null)
+      return
+    }
+
+    const touch = e.touches[0]
+    const rect = canvas.getBoundingClientRect()
+    const screenX = touch.clientX - rect.left
+    const screenY = touch.clientY - rect.top
+
+    // Check for double tap (remove item)
+    const now = Date.now()
+    const TAP_DELAY = 300 // ms
+
+    if (lastTapTime && now - lastTapTime < TAP_DELAY && lastTapPos) {
+      // Check if tap is in roughly the same position
+      const dist = Math.sqrt(
+        Math.pow(screenX - lastTapPos.x, 2) + Math.pow(screenY - lastTapPos.y, 2)
+      )
+      if (dist < 30) {
+        // Double tap detected
+        const clickedItem = getItemAtScreenPos(screenX, screenY)
+        if (clickedItem) {
+          onRemoveItem(clickedItem.id)
+        }
+        setLastTapTime(0)
+        setLastTapPos(null)
+        return
+      }
+    }
+
+    setLastTapTime(now)
+    setLastTapPos({ x: screenX, y: screenY })
+
+    // If in placement mode, place the item
+    if (selectedItemType && hoverTile) {
+      const item = availableItems.find(i => i.id === selectedItemType)
+      const clampedPlaceX = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.x))
+      const clampedPlaceY = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.y))
+
+      if (item && !isWallPosition(clampedPlaceX, clampedPlaceY) && !hasCollision(clampedPlaceX, clampedPlaceY, item.width, item.height)) {
+        onAddItem(selectedItemType, clampedPlaceX, clampedPlaceY)
+      }
+      return
+    }
+
+    // Check if touching an item
+    const clickedItem = getItemAtScreenPos(screenX, screenY)
+
+    if (clickedItem) {
+      // Start dragging item
+      const world = screenToWorld(screenX, screenY)
+      const clampedWorldX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+      const clampedWorldY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+      setDraggedItem(clickedItem.id)
+      setDragOffset({ x: clampedWorldX - clickedItem.x, y: clampedWorldY - clickedItem.y })
+      setIsPanning(false)
+    } else {
+      // Start panning
+      setIsPanning(true)
+      setPanStart({ x: screenX - pan.x, y: screenY - pan.y })
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    const canvas = canvasRef.current
+    if (!canvas || e.touches.length === 0) return
+
+    // Two-finger pinch to zoom
+    if (e.touches.length === 2 && lastPinchDistance) {
+      const touch1 = e.touches[0]
+      const touch2 = e.touches[1]
+      const distance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) +
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      )
+
+      const rect = canvas.getBoundingClientRect()
+      const centerX = ((touch1.clientX + touch2.clientX) / 2) - rect.left
+      const centerY = ((touch1.clientY + touch2.clientY) / 2) - rect.top
+
+      // Calculate zoom change
+      const zoomDelta = distance / lastPinchDistance
+      const newZoom = Math.max(0.3, Math.min(3, zoom * zoomDelta))
+
+      // Zoom towards pinch center
+      const zoomRatio = newZoom / zoom
+      const newPanX = centerX - (centerX - pan.x) * zoomRatio
+      const newPanY = centerY - (centerY - pan.y) * zoomRatio
+
+      setZoom(newZoom)
+      setPan({ x: newPanX, y: newPanY })
+      setLastPinchDistance(distance)
+      return
+    }
+
+    const touch = e.touches[0]
+    const rect = canvas.getBoundingClientRect()
+    const screenX = touch.clientX - rect.left
+    const screenY = touch.clientY - rect.top
+
+    // Handle panning
+    if (isPanning && panStart) {
+      setPan({
+        x: screenX - panStart.x,
+        y: screenY - panStart.y
+      })
+      return
+    }
+
+    const world = screenToWorld(screenX, screenY)
+
+    // Clamp world coordinates to grid boundaries
+    const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+    const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+
+    // Update hover tile with clamped coordinates
+    if (isValidTile(clampedX, clampedY)) {
+      setHoverTile({ x: clampedX, y: clampedY })
+    } else {
+      setHoverTile(null)
+    }
+
+    // Handle dragging item
+    if (draggedItem) {
+      const item = placedItems.find(i => i.id === draggedItem)
+      const furnitureData = item ? availableItems.find(f => f.id === item.itemId) : null
+
+      if (item && furnitureData) {
+        let newX = clampedX - dragOffset.x
+        let newY = clampedY - dragOffset.y
+
+        // Clamp position to stay within grid boundaries
+        newX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newX)))
+        newY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newY)))
+
+        // Check if position is valid (not on wall and no collision)
+        if (!isWallPosition(newX, newY) && !hasCollision(newX, newY, furnitureData.width, furnitureData.height, draggedItem)) {
+          onMoveItem(draggedItem, newX, newY)
+        }
+      }
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    setDraggedItem(null)
+    setIsPanning(false)
+    setPanStart(null)
+    setLastPinchDistance(null)
+  }
+
   return (
     <div className="isometric-room-container">
       <canvas
@@ -583,9 +814,15 @@ export default function IsometricRoom({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onDoubleClick={handleDoubleClick}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        style={{ touchAction: 'none' }}
       />
       <div className="room-instructions">
-        {selectedItemType ? 'Click to place • ESC to cancel' : 'Click to select • Drag to move • Double-click to remove'}
+        {selectedItemType ? 'Tap to place • Pinch to zoom • Drag to pan' : 'Tap to select • Drag to move • Double-tap to remove • Pinch to zoom'}
       </div>
     </div>
   )

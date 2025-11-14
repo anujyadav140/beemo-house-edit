@@ -2,6 +2,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -13,6 +14,11 @@ body {
   overflow: hidden;
   width: 100vw;
   height: 100vh;
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .app {
@@ -179,6 +185,11 @@ body {
   width: 100%;
   height: 100%;
   cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .isometric-canvas:active {
