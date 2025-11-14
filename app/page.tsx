@@ -126,6 +126,24 @@ declare global {
     getRoomState: () => PlacedItem[]
     clearRoom: () => void
     getAvailableItems: () => FurnitureItem[]
+    FlutterChannel?: {
+      postMessage: (message: string) => void
+    }
+  }
+}
+
+// Helper function to send messages to Flutter
+const sendToFlutter = (data: any) => {
+  const message = JSON.stringify(data)
+
+  // Try Flutter JavaScriptChannel first
+  if (window.FlutterChannel && typeof window.FlutterChannel.postMessage === 'function') {
+    window.FlutterChannel.postMessage(message)
+    console.log('📤 Sent to Flutter via JavaScriptChannel:', data.type)
+  } else {
+    // Fallback to window.postMessage for local testing
+    window.postMessage(message, '*')
+    console.log('📤 Sent via window.postMessage:', data.type)
   }
 }
 
@@ -179,16 +197,16 @@ export default function Home() {
             break
           case 'GET_ROOM_STATE':
             // Send back the current state
-            window.postMessage(JSON.stringify({
+            sendToFlutter({
               type: 'ROOM_STATE_RESPONSE',
               items: placedItems
-            }), '*')
+            })
             break
           case 'GET_AVAILABLE_ITEMS':
-            window.postMessage(JSON.stringify({
+            sendToFlutter({
               type: 'AVAILABLE_ITEMS_RESPONSE',
               items: AVAILABLE_ITEMS
-            }), '*')
+            })
             break
           case 'LOAD_STATE':
             // Load state sent from Flutter
@@ -210,7 +228,7 @@ export default function Home() {
 
     // Notify Flutter that the app is ready
     setTimeout(() => {
-      window.postMessage(JSON.stringify({ type: 'READY' }), '*')
+      sendToFlutter({ type: 'READY' })
     }, 100)
 
     return () => {
@@ -234,10 +252,10 @@ export default function Home() {
     setSelectedItemType(null)
 
     // Notify Flutter about item placement
-    window.postMessage(JSON.stringify({
+    sendToFlutter({
       type: 'ITEM_PLACED',
       item: newItem
-    }), '*')
+    })
   }
 
   const handleMoveItem = (id: string, x: number, y: number) => {
@@ -246,22 +264,22 @@ export default function Home() {
     ))
 
     // Notify Flutter about item movement
-    window.postMessage(JSON.stringify({
+    sendToFlutter({
       type: 'ITEM_MOVED',
       id,
       x,
       y
-    }), '*')
+    })
   }
 
   const handleRemoveItem = (id: string) => {
     setPlacedItems(items => items.filter(item => item.id !== id))
 
     // Notify Flutter about item removal
-    window.postMessage(JSON.stringify({
+    sendToFlutter({
       type: 'ITEM_REMOVED',
       id
-    }), '*')
+    })
   }
 
   return (
