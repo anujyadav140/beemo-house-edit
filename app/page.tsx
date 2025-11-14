@@ -190,6 +190,16 @@ export default function Home() {
               items: AVAILABLE_ITEMS
             }), '*')
             break
+          case 'LOAD_STATE':
+            // Load state sent from Flutter
+            if (data.items && Array.isArray(data.items)) {
+              setPlacedItems(data.items)
+            }
+            if (data.currentRoom) {
+              // Can be used to sync current room if needed
+              console.log('Current room:', data.currentRoom)
+            }
+            break
         }
       } catch (e) {
         console.error('Error handling message:', e)
