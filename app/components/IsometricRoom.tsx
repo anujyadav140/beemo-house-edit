@@ -639,7 +639,6 @@ export default function IsometricRoom({
 
   // Touch event handlers for mobile support
   const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault()
     const canvas = canvasRef.current
     if (!canvas || e.touches.length === 0) return
 
@@ -686,14 +685,17 @@ export default function IsometricRoom({
     setLastTapTime(now)
     setLastTapPos({ x: screenX, y: screenY })
 
-    // If in placement mode, place the item
-    if (selectedItemType && hoverTile) {
-      const item = availableItems.find(i => i.id === selectedItemType)
-      const clampedPlaceX = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.x))
-      const clampedPlaceY = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.y))
+    // Calculate world position for placement
+    const world = screenToWorld(screenX, screenY)
+    const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+    const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
 
-      if (item && !isWallPosition(clampedPlaceX, clampedPlaceY) && !hasCollision(clampedPlaceX, clampedPlaceY, item.width, item.height)) {
-        onAddItem(selectedItemType, clampedPlaceX, clampedPlaceY)
+    // If in placement mode, place the item
+    if (selectedItemType) {
+      const item = availableItems.find(i => i.id === selectedItemType)
+
+      if (item && isValidTile(clampedX, clampedY) && !isWallPosition(clampedX, clampedY) && !hasCollision(clampedX, clampedY, item.width, item.height)) {
+        onAddItem(selectedItemType, clampedX, clampedY)
       }
       return
     }
@@ -702,12 +704,9 @@ export default function IsometricRoom({
     const clickedItem = getItemAtScreenPos(screenX, screenY)
 
     if (clickedItem) {
-      // Start dragging item
-      const world = screenToWorld(screenX, screenY)
-      const clampedWorldX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
-      const clampedWorldY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+      // Start dragging item (using the world coordinates we already calculated)
       setDraggedItem(clickedItem.id)
-      setDragOffset({ x: clampedWorldX - clickedItem.x, y: clampedWorldY - clickedItem.y })
+      setDragOffset({ x: clampedX - clickedItem.x, y: clampedY - clickedItem.y })
       setIsPanning(false)
     } else {
       // Start panning
@@ -717,7 +716,6 @@ export default function IsometricRoom({
   }
 
   const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault()
     const canvas = canvasRef.current
     if (!canvas || e.touches.length === 0) return
 
@@ -798,7 +796,6 @@ export default function IsometricRoom({
   }
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    e.preventDefault()
     setDraggedItem(null)
     setIsPanning(false)
     setPanStart(null)
