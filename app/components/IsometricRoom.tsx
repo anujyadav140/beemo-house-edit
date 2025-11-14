@@ -187,16 +187,16 @@ export default function IsometricRoom({
         if (furnitureData.id === 'sofa') imageScale = 3
 
         if (imageAspectRatio > baseWidth / baseHeight) {
-          renderWidth = baseWidth * imageScale
-          renderHeight = (baseWidth / imageAspectRatio) * imageScale
+          renderWidth = baseWidth * imageScale * zoom
+          renderHeight = (baseWidth / imageAspectRatio) * imageScale * zoom
         } else {
-          renderHeight = baseHeight * imageScale
-          renderWidth = (baseHeight * imageAspectRatio) * imageScale
+          renderHeight = baseHeight * imageScale * zoom
+          renderWidth = (baseHeight * imageAspectRatio) * imageScale * zoom
         }
       } else {
         // Fallback to placeholder dimensions
-        renderWidth = furnitureData.width * TILE_SIZE * 1.5
-        renderHeight = (furnitureData.visualHeight || furnitureData.height) * TILE_SIZE * 2
+        renderWidth = furnitureData.width * TILE_SIZE * 1.5 * zoom
+        renderHeight = (furnitureData.visualHeight || furnitureData.height) * TILE_SIZE * 2 * zoom
       }
 
       const left = basePos.x - renderWidth / 2
@@ -250,7 +250,7 @@ export default function IsometricRoom({
     ctx.fillStyle = backWallGradient
     ctx.fill()
     ctx.strokeStyle = '#a89878'
-    ctx.lineWidth = 2
+    ctx.lineWidth = 2 * zoom
     ctx.stroke()
     ctx.restore()
 
@@ -274,7 +274,7 @@ export default function IsometricRoom({
     ctx.fillStyle = leftWallGradient
     ctx.fill()
     ctx.strokeStyle = '#a89878'
-    ctx.lineWidth = 2
+    ctx.lineWidth = 2 * zoom
     ctx.stroke()
     ctx.restore()
 
@@ -300,7 +300,7 @@ export default function IsometricRoom({
 
         // Tile borders
         ctx.strokeStyle = '#d0c0a0'
-        ctx.lineWidth = 1
+        ctx.lineWidth = 1 * zoom
         ctx.stroke()
 
         // Hover highlight
@@ -377,8 +377,9 @@ export default function IsometricRoom({
         if (furnitureData.id === 'desk') imageScale = 3
         if (furnitureData.id === 'sofa') imageScale = 3
 
-        const scaledWidth = renderWidth * imageScale
-        const scaledHeight = renderHeight * imageScale
+        // Apply zoom to image scale so images scale with the room
+        const scaledWidth = renderWidth * imageScale * zoom
+        const scaledHeight = renderHeight * imageScale * zoom
 
         // Flip when NOT at the left edge of the floor grid (x=1)
         // x=0 is the wall (blocked), so x=1 is the leftmost valid floor position
@@ -407,13 +408,13 @@ export default function IsometricRoom({
         }
       } else {
         // Draw placeholder when image not loaded
-        const itemWidth = furnitureData.width * TILE_SIZE * 1.5
-        const itemHeight = (furnitureData.visualHeight || furnitureData.height) * TILE_SIZE * 2
+        const itemWidth = furnitureData.width * TILE_SIZE * 1.5 * zoom
+        const itemHeight = (furnitureData.visualHeight || furnitureData.height) * TILE_SIZE * 2 * zoom
 
         ctx.fillStyle = furnitureData.color || '#888'
         ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
-        ctx.shadowBlur = 10
-        ctx.shadowOffsetY = 5
+        ctx.shadowBlur = 10 * zoom
+        ctx.shadowOffsetY = 5 * zoom
 
         ctx.fillRect(
           basePos.x - itemWidth / 2,
@@ -423,7 +424,7 @@ export default function IsometricRoom({
         )
 
         ctx.strokeStyle = '#333'
-        ctx.lineWidth = 2
+        ctx.lineWidth = 2 * zoom
         ctx.strokeRect(
           basePos.x - itemWidth / 2,
           basePos.y - itemHeight,
@@ -468,18 +469,18 @@ export default function IsometricRoom({
           if (item.id === 'rug') imageScale = 3
           if (item.id === 'table') imageScale = 3
           if (item.id === 'desk') imageScale = 3
-          if (item.id === 'sofa') imageScale = 4
+          if (item.id === 'sofa') imageScale = 3
 
           if (imageAspectRatio > baseWidth / baseHeight) {
-            previewWidth = baseWidth * imageScale
-            previewHeight = (baseWidth / imageAspectRatio) * imageScale
+            previewWidth = baseWidth * imageScale * zoom
+            previewHeight = (baseWidth / imageAspectRatio) * imageScale * zoom
           } else {
-            previewHeight = baseHeight * imageScale
-            previewWidth = (baseHeight * imageAspectRatio) * imageScale
+            previewHeight = baseHeight * imageScale * zoom
+            previewWidth = (baseHeight * imageAspectRatio) * imageScale * zoom
           }
         } else {
-          previewWidth = item.width * TILE_SIZE * 1.5
-          previewHeight = (item.visualHeight || item.height) * TILE_SIZE * 2
+          previewWidth = item.width * TILE_SIZE * 1.5 * zoom
+          previewHeight = (item.visualHeight || item.height) * TILE_SIZE * 2 * zoom
         }
 
         ctx.fillStyle = isValid ? (item.color || '#888') : '#ff0000'
@@ -491,7 +492,7 @@ export default function IsometricRoom({
         )
 
         ctx.strokeStyle = isValid ? '#333' : '#aa0000'
-        ctx.lineWidth = 2
+        ctx.lineWidth = 2 * zoom
         ctx.strokeRect(
           basePos.x - previewWidth / 2,
           basePos.y - previewHeight,
