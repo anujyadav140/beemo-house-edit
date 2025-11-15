@@ -10,6 +10,7 @@ interface IsometricRoomProps {
   onAddItem: (itemId: string, x: number, y: number) => void
   onMoveItem: (id: string, x: number, y: number) => void
   onRemoveItem: (id: string) => void
+  floorColor: { light: string, dark: string }
 }
 
 // Isometric projection constants
@@ -24,7 +25,8 @@ export default function IsometricRoom({
   selectedItemType,
   onAddItem,
   onMoveItem,
-  onRemoveItem
+  onRemoveItem,
+  floorColor
 }: IsometricRoomProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
@@ -293,9 +295,9 @@ export default function IsometricRoom({
         ctx.lineTo(p4.x, p4.y)
         ctx.closePath()
 
-        // Checkerboard pattern
+        // Checkerboard pattern with customizable colors
         const isLight = (x + y) % 2 === 0
-        ctx.fillStyle = isLight ? '#f5e6d3' : '#e8d4b8'
+        ctx.fillStyle = isLight ? floorColor.light : floorColor.dark
         ctx.fill()
 
         // Tile borders
@@ -504,7 +506,7 @@ export default function IsometricRoom({
       }
     }
 
-  }, [placedItems, availableItems, hoverTile, selectedItemType, loadedImages, zoom, pan])
+  }, [placedItems, availableItems, hoverTile, selectedItemType, loadedImages, zoom, pan, floorColor])
 
   // Mouse event handlers
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {

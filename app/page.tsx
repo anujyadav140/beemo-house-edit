@@ -114,10 +114,30 @@ const sendToFlutter = (data: any) => {
   }
 }
 
+// Helper function to adjust color brightness
+const adjustColorBrightness = (color: string, percent: number): string => {
+  // Convert hex to RGB
+  const num = parseInt(color.replace('#', ''), 16)
+  const r = (num >> 16) + Math.round(255 * percent)
+  const g = ((num >> 8) & 0x00FF) + Math.round(255 * percent)
+  const b = (num & 0x0000FF) + Math.round(255 * percent)
+
+  // Clamp values and convert back to hex
+  const newR = Math.max(0, Math.min(255, r))
+  const newG = Math.max(0, Math.min(255, g))
+  const newB = Math.max(0, Math.min(255, b))
+
+  return '#' + ((newR << 16) | (newG << 8) | newB).toString(16).padStart(6, '0')
+}
+
 export default function Home() {
   const [placedItems, setPlacedItems] = useState<PlacedItem[]>([])
   const [selectedItemType, setSelectedItemType] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
+  const [floorColor, setFloorColor] = useState<{ light: string, dark: string }>({
+    light: '#f5e6d3',
+    dark: '#e8d4b8'
+  })
 
   // Expose functions to Flutter WebView
   useEffect(() => {
@@ -186,6 +206,21 @@ export default function Home() {
             if (data.currentRoom) {
               // Can be used to sync current room if needed
               console.log('📍 Current room:', data.currentRoom)
+            }
+            break
+          case 'CHANGE_FLOOR_COLOR':
+            // Change floor color sent from Flutter
+            if (data.light && data.dark) {
+              setFloorColor({ light: data.light, dark: data.dark })
+              console.log('🎨 Floor color changed:', data.light, data.dark)
+            } else if (data.color) {
+              // Single color - create light and dark variants
+              const baseColor = data.color
+              setFloorColor({
+                light: baseColor,
+                dark: adjustColorBrightness(baseColor, -0.15)
+              })
+              console.log('🎨 Floor color changed to:', baseColor)
             }
             break
         }
@@ -263,6 +298,7 @@ export default function Home() {
         onAddItem={handleAddItem}
         onMoveItem={handleMoveItem}
         onRemoveItem={handleRemoveItem}
+        floorColor={floorColor}
       />
     </div>
   )
