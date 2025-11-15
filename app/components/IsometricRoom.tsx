@@ -11,6 +11,7 @@ interface IsometricRoomProps {
   onMoveItem: (id: string, x: number, y: number) => void
   onRemoveItem: (id: string) => void
   floorColor: { light: string, dark: string }
+  wallColor: { base: string, top: string, bottom: string }
 }
 
 // Isometric projection constants
@@ -26,7 +27,8 @@ export default function IsometricRoom({
   onAddItem,
   onMoveItem,
   onRemoveItem,
-  floorColor
+  floorColor,
+  wallColor
 }: IsometricRoomProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
@@ -235,8 +237,8 @@ export default function IsometricRoom({
     // Draw back wall
     ctx.save()
     const backWallGradient = ctx.createLinearGradient(0, 0, 0, WALL_HEIGHT)
-    backWallGradient.addColorStop(0, '#e8dcc8')
-    backWallGradient.addColorStop(1, '#d4c4a8')
+    backWallGradient.addColorStop(0, wallColor.top)
+    backWallGradient.addColorStop(1, wallColor.bottom)
 
     const topLeft = worldToScreen(0, 0, WALL_HEIGHT)
     const topRight = worldToScreen(ROOM_SIZE, 0, WALL_HEIGHT)
@@ -259,8 +261,8 @@ export default function IsometricRoom({
     // Draw left wall
     ctx.save()
     const leftWallGradient = ctx.createLinearGradient(0, 0, 0, WALL_HEIGHT)
-    leftWallGradient.addColorStop(0, '#d4c4a8')
-    leftWallGradient.addColorStop(1, '#c0b090')
+    leftWallGradient.addColorStop(0, wallColor.bottom)
+    leftWallGradient.addColorStop(1, wallColor.bottom)
 
     const leftTopLeft = worldToScreen(0, 0, WALL_HEIGHT)
     const leftTopRight = worldToScreen(0, ROOM_SIZE, WALL_HEIGHT)
@@ -506,7 +508,7 @@ export default function IsometricRoom({
       }
     }
 
-  }, [placedItems, availableItems, hoverTile, selectedItemType, loadedImages, zoom, pan, floorColor])
+  }, [placedItems, availableItems, hoverTile, selectedItemType, loadedImages, zoom, pan, floorColor, wallColor])
 
   // Mouse event handlers
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {

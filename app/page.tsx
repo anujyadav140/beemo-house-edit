@@ -138,6 +138,11 @@ export default function Home() {
     light: '#f5e6d3',
     dark: '#e8d4b8'
   })
+  const [wallColor, setWallColor] = useState<{ base: string, top: string, bottom: string }>({
+    base: '#e8dcc8',
+    top: '#f0e5d0',
+    bottom: '#d4c4a8'
+  })
 
   // Expose functions to Flutter WebView
   useEffect(() => {
@@ -223,6 +228,17 @@ export default function Home() {
               console.log('🎨 Floor color changed to:', baseColor)
             }
             break
+          case 'CHANGE_WALL_COLOR':
+            // Change wall color sent from Flutter
+            if (data.base && data.top && data.bottom) {
+              setWallColor({
+                base: data.base,
+                top: data.top,
+                bottom: data.bottom
+              })
+              console.log('🎨 Wall color changed:', data.base, data.top, data.bottom)
+            }
+            break
         }
       } catch (e) {
         console.error('Error handling message:', e)
@@ -299,6 +315,7 @@ export default function Home() {
         onMoveItem={handleMoveItem}
         onRemoveItem={handleRemoveItem}
         floorColor={floorColor}
+        wallColor={wallColor}
       />
     </div>
   )
