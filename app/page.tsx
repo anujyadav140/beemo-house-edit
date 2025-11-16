@@ -83,6 +83,149 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     placementType: 'floor',
     color: '#FFD700'
   },
+  {
+    id: 'arcade',
+    name: 'Arcade',
+    category: 'furniture',
+    imageUrl: '/new images/arcade.png',
+    width: 1,
+    height: 1,
+    visualHeight: 3,
+    placementType: 'floor',
+    color: '#FF6B6B'
+  },
+  {
+    id: 'bed',
+    name: 'Bed',
+    category: 'furniture',
+    imageUrl: '/new images/bed.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2,
+    placementType: 'floor',
+    color: '#C8A882'
+  },
+  {
+    id: 'beemo_box',
+    name: 'Beemo Box',
+    category: 'decor',
+    imageUrl: '/new images/beemo box.png',
+    width: 1,
+    height: 1,
+    visualHeight: 1.5,
+    placementType: 'floor',
+    color: '#4ECDC4'
+  },
+  {
+    id: 'chess_table',
+    name: 'Chess Table',
+    category: 'furniture',
+    imageUrl: '/new images/chess table.png',
+    width: 1,
+    height: 1,
+    visualHeight: 1.5,
+    placementType: 'floor',
+    color: '#8B4513'
+  },
+  {
+    id: 'computer',
+    name: 'Computer',
+    category: 'furniture',
+    imageUrl: '/new images/computer.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2,
+    placementType: 'floor',
+    color: '#708090'
+  },
+  {
+    id: 'kitchen',
+    name: 'Kitchen',
+    category: 'furniture',
+    imageUrl: '/new images/kitchen.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2.5,
+    placementType: 'floor',
+    color: '#F5DEB3'
+  },
+  {
+    id: 'music_box',
+    name: 'Music Box',
+    category: 'decor',
+    imageUrl: '/new images/music box.png',
+    width: 1,
+    height: 1,
+    visualHeight: 1.5,
+    placementType: 'floor',
+    color: '#DAA520'
+  },
+  {
+    id: 'music_system',
+    name: 'Music System',
+    category: 'furniture',
+    imageUrl: '/new images/music system.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2,
+    placementType: 'floor',
+    color: '#2F4F4F'
+  },
+  {
+    id: 'music_system_white',
+    name: 'Music System White',
+    category: 'furniture',
+    imageUrl: '/new images/music system - white.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2,
+    placementType: 'floor',
+    color: '#F5F5F5'
+  },
+  {
+    id: 'pc_table',
+    name: 'PC Table',
+    category: 'furniture',
+    imageUrl: '/new images/PC table.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2,
+    placementType: 'floor',
+    color: '#696969'
+  },
+  {
+    id: 'piano',
+    name: 'Piano',
+    category: 'furniture',
+    imageUrl: '/new images/piano.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2.5,
+    placementType: 'floor',
+    color: '#000000'
+  },
+  {
+    id: 'plant',
+    name: 'Plant',
+    category: 'decor',
+    imageUrl: '/new images/plant.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2,
+    placementType: 'floor',
+    color: '#228B22'
+  },
+  {
+    id: 'tv',
+    name: 'TV',
+    category: 'furniture',
+    imageUrl: '/new images/tv.png',
+    width: 1,
+    height: 1,
+    visualHeight: 2,
+    placementType: 'floor',
+    color: '#000000'
+  },
 ]
 
 // Extend Window interface for Flutter WebView communication
