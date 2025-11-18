@@ -920,24 +920,47 @@ export default function IsometricRoom({
     setLastTapTime(now)
     setLastTapPos({ x: screenX, y: screenY })
 
-    const world = screenToWorld(screenX, screenY)
-    const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
-    const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
-
+    // Placement Logic
     if (selectedItemType) {
       const item = availableItems.find(i => i.id === selectedItemType)
+      if (!item) return
 
-      if (item && isValidTile(clampedX, clampedY) && !isWallPosition(clampedX, clampedY) && !hasCollision(clampedX, clampedY, item.width, item.height)) {
-        onAddItem(selectedItemType, clampedX, clampedY)
+      if (item.placementType === 'wall') {
+        // Wall item placement
+        const wallPos = screenToWall(screenX, screenY)
+        if (wallPos.wall !== 'none') {
+          if (!hasWallCollision(wallPos.x, wallPos.y, wallPos.z, item.width, item.visualHeight || item.height || 1)) {
+            onAddItem(selectedItemType, wallPos.x, wallPos.y, wallPos.z)
+          }
+        }
+      } else {
+        // Floor item placement
+        const world = screenToWorld(screenX, screenY)
+        const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+        const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+
+        if (isValidTile(clampedX, clampedY) && !isWallPosition(clampedX, clampedY) && !hasCollision(clampedX, clampedY, item.width, item.height)) {
+          onAddItem(selectedItemType, clampedX, clampedY)
+        }
       }
       return
     }
 
+    // Selection / Dragging Logic
     const clickedItem = getItemAtScreenPos(screenX, screenY)
 
     if (clickedItem) {
       setDraggedItem(clickedItem.id)
-      setDragOffset({ x: clampedX - clickedItem.x, y: clampedY - clickedItem.y })
+      const furnitureData = availableItems.find(f => f.id === clickedItem.itemId)
+
+      if (furnitureData?.placementType === 'wall') {
+        setDragOffset({ x: 0, y: 0 })
+      } else {
+        const world = screenToWorld(screenX, screenY)
+        const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+        const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+        setDragOffset({ x: clampedX - clickedItem.x, y: clampedY - clickedItem.y })
+      }
       setIsPanning(false)
     } else {
       setIsPanning(true)
@@ -987,29 +1010,59 @@ export default function IsometricRoom({
       return
     }
 
-    const world = screenToWorld(screenX, screenY)
-    const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
-    const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+    // Hover Logic
+    const selectedItem = selectedItemType ? availableItems.find(i => i.id === selectedItemType) : null
+    const isWallItem = selectedItem?.placementType === 'wall' ||
+      (selectedItemType && (selectedItemType.includes('painting') || selectedItemType.includes('mirror')))
 
-    if (isValidTile(clampedX, clampedY)) {
-      setHoverTile({ x: clampedX, y: clampedY })
+    if (isWallItem) {
+      const wallPos = screenToWall(screenX, screenY)
+      if (wallPos.wall !== 'none') {
+        setHoverTile({ x: wallPos.x, y: wallPos.y, z: wallPos.z })
+      } else {
+        setHoverTile(null)
+      }
     } else {
-      setHoverTile(null)
+      const world = screenToWorld(screenX, screenY)
+      const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+      const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+
+      if (isValidTile(clampedX, clampedY)) {
+        setHoverTile({ x: clampedX, y: clampedY })
+      } else {
+        setHoverTile(null)
+      }
     }
 
+    // Dragging Logic
     if (draggedItem) {
       const item = placedItems.find(i => i.id === draggedItem)
       const furnitureData = item ? availableItems.find(f => f.id === item.itemId) : null
 
       if (item && furnitureData) {
-        let newX = clampedX - dragOffset.x
-        let newY = clampedY - dragOffset.y
+        const isDraggedWallItem = furnitureData.placementType === 'wall'
 
-        newX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newX)))
-        newY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newY)))
+        if (isDraggedWallItem) {
+          // Wall Item Dragging
+          const wallPos = screenToWall(screenX, screenY)
+          if (wallPos.wall !== 'none') {
+            onMoveItem(draggedItem, wallPos.x, wallPos.y, wallPos.z)
+          }
+        } else {
+          // Floor Item Dragging
+          const world = screenToWorld(screenX, screenY)
+          const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+          const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
 
-        if (!isWallPosition(newX, newY) && !hasCollision(newX, newY, furnitureData.width, furnitureData.height, draggedItem)) {
-          onMoveItem(draggedItem, newX, newY)
+          let newX = clampedX - dragOffset.x
+          let newY = clampedY - dragOffset.y
+
+          newX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newX)))
+          newY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newY)))
+
+          if (!isWallPosition(newX, newY) && !hasCollision(newX, newY, furnitureData.width, furnitureData.height, draggedItem)) {
+            onMoveItem(draggedItem, newX, newY)
+          }
         }
       }
     }
