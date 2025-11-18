@@ -365,9 +365,32 @@ export default function IsometricRoom({
     ctx.stroke()
     ctx.restore()
 
-    // Draw floor tiles
-    for (let y = 0; y < ROOM_SIZE; y++) {
-      for (let x = 0; x < ROOM_SIZE; x++) {
+    // Draw floor as solid surface
+    ctx.save()
+    const floorP1 = worldToScreen(0, 0, 0)
+    const floorP2 = worldToScreen(ROOM_SIZE, 0, 0)
+    const floorP3 = worldToScreen(ROOM_SIZE, ROOM_SIZE, 0)
+    const floorP4 = worldToScreen(0, ROOM_SIZE, 0)
+
+    ctx.beginPath()
+    ctx.moveTo(floorP1.x, floorP1.y)
+    ctx.lineTo(floorP2.x, floorP2.y)
+    ctx.lineTo(floorP3.x, floorP3.y)
+    ctx.lineTo(floorP4.x, floorP4.y)
+    ctx.closePath()
+
+    // Solid floor color
+    ctx.fillStyle = floorColor.light
+    ctx.fill()
+    ctx.restore()
+
+    // Draw hover highlight for placement (iterate tiles for hover detection only)
+    if (hoverTile && selectedItemType) {
+      const item = availableItems.find(i => i.id === selectedItemType)
+      if (item) {
+        const x = hoverTile.x
+        const y = hoverTile.y
+
         const p1 = worldToScreen(x, y, 0)
         const p2 = worldToScreen(x + 1, y, 0)
         const p3 = worldToScreen(x + 1, y + 1, 0)
@@ -380,28 +403,12 @@ export default function IsometricRoom({
         ctx.lineTo(p4.x, p4.y)
         ctx.closePath()
 
-        // Checkerboard pattern with customizable colors
-        const isLight = (x + y) % 2 === 0
-        ctx.fillStyle = isLight ? floorColor.light : floorColor.dark
+        const isValid = isValidTile(x, y, item.width, item.height) &&
+          !isWallPosition(x, y) &&
+          !hasCollision(x, y, item.width, item.height)
+
+        ctx.fillStyle = isValid ? 'rgba(50, 205, 50, 0.3)' : 'rgba(255, 0, 0, 0.3)'
         ctx.fill()
-
-        // Tile borders
-        ctx.strokeStyle = '#d0c0a0'
-        ctx.lineWidth = 1 * zoom
-        ctx.stroke()
-
-        // Hover highlight for placement
-        if (hoverTile && hoverTile.x === x && hoverTile.y === y && selectedItemType) {
-          const item = availableItems.find(i => i.id === selectedItemType)
-          if (item) {
-            const isValid = isValidTile(x, y, item.width, item.height) &&
-              !isWallPosition(x, y) &&
-              !hasCollision(x, y, item.width, item.height)
-
-            ctx.fillStyle = isValid ? 'rgba(50, 205, 50, 0.3)' : 'rgba(255, 0, 0, 0.3)'
-            ctx.fill()
-          }
-        }
       }
     }
 

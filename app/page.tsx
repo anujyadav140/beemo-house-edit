@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import IsometricRoom from './components/IsometricRoom'
-import ObjectSidebar from './components/ObjectSidebar'
 import type { FurnitureItem, PlacedItem } from '../types'
 
 // Available furniture and decor items (matching Flutter assets)
@@ -515,11 +514,6 @@ export default function Home() {
         onRemoveItem={handleRemoveItem}
         floorColor={floorColor}
         wallColor={wallColor}
-      />
-      <ObjectSidebar
-        items={AVAILABLE_ITEMS}
-        onSelectItem={(id) => setSelectedItemType(id === selectedItemType ? null : id)}
-        selectedItemId={selectedItemType}
       />
     </div>
   )
