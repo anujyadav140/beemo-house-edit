@@ -7,8 +7,8 @@ interface IsometricRoomProps {
   placedItems: PlacedItem[]
   availableItems: FurnitureItem[]
   selectedItemType: string | null
-  onAddItem: (itemId: string, x: number, y: number) => void
-  onMoveItem: (id: string, x: number, y: number) => void
+  onAddItem: (itemId: string, x: number, y: number, z?: number) => void
+  onMoveItem: (id: string, x: number, y: number, z?: number) => void
   onRemoveItem: (id: string) => void
   floorColor: { light: string, dark: string }
   wallColor: { base: string, top: string, bottom: string }
@@ -33,10 +33,11 @@ export default function IsometricRoom({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-  const [hoverTile, setHoverTile] = useState<{ x: number, y: number } | null>(null)
+  const [hoverTile, setHoverTile] = useState<{ x: number, y: number, z?: number } | null>(null)
   const [loadedImages, setLoadedImages] = useState<Map<string, HTMLImageElement>>(new Map())
   const [lastTapTime, setLastTapTime] = useState<number>(0)
   const [lastTapPos, setLastTapPos] = useState<{ x: number, y: number } | null>(null)
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
 
   // Zoom and pan state
   const [zoom, setZoom] = useState<number>(1)
@@ -140,6 +141,72 @@ export default function IsometricRoom({
     }
   }
 
+  // Convert screen coordinates to wall coordinates (Left or Right wall)
+  const screenToWall = (screenX: number, screenY: number): { x: number, y: number, z: number, wall: 'left' | 'right' | 'none' } => {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0, z: 0, wall: 'none' }
+
+    const offsetX = canvas.width / 2
+    const offsetY = WALL_HEIGHT + 80
+
+    // Reverse zoom and pan
+    const adjustedX = (screenX - pan.x) / zoom
+    const adjustedY = (screenY - pan.y) / zoom
+
+    // Constants from projection
+    const C = Math.cos(ISO_ANGLE) * TILE_SIZE
+    const S = Math.sin(ISO_ANGLE) * TILE_SIZE
+
+    // Left Wall (x=0):
+    // adjustedX - offsetX = -y * C => y = -(adjustedX - offsetX) / C
+    // adjustedY - offsetY = y * S - z => z = y * S - (adjustedY - offsetY)
+    const leftY = -(adjustedX - offsetX) / C
+    const leftZ = leftY * S - (adjustedY - offsetY)
+
+    // Right Wall (y=0):
+    // adjustedX - offsetX = x * C => x = (adjustedX - offsetX) / C
+    // adjustedY - offsetY = x * S - z => z = x * S - (adjustedY - offsetY)
+    const rightX = (adjustedX - offsetX) / C
+    const rightZ = rightX * S - (adjustedY - offsetY)
+
+    // Check bounds (strict clamping)
+    const isLeft = leftY >= 0 && leftY <= ROOM_SIZE && leftZ >= 0 && leftZ <= WALL_HEIGHT
+    const isRight = rightX >= 0 && rightX <= ROOM_SIZE && rightZ >= 0 && rightZ <= WALL_HEIGHT
+
+    // Determine which wall is closer or valid
+    if (isLeft && !isRight) return { x: 0, y: leftY, z: leftZ, wall: 'left' }
+    if (isRight && !isLeft) return { x: rightX, y: 0, z: rightZ, wall: 'right' }
+
+    if (isLeft && isRight) {
+      // Corner case: prioritize based on mouse position relative to center line
+      if (adjustedX < offsetX) return { x: 0, y: leftY, z: leftZ, wall: 'left' }
+      return { x: rightX, y: 0, z: rightZ, wall: 'right' }
+    }
+
+    // If neither is strictly valid, find the closest valid wall point
+    // Calculate distances to valid ranges
+    const distLeftY = Math.max(0, -leftY, leftY - ROOM_SIZE)
+    const distLeftZ = Math.max(0, -leftZ, leftZ - WALL_HEIGHT)
+    const distLeft = distLeftY + distLeftZ
+
+    const distRightX = Math.max(0, -rightX, rightX - ROOM_SIZE)
+    const distRightZ = Math.max(0, -rightZ, rightZ - WALL_HEIGHT)
+    const distRight = distRightX + distRightZ
+
+    // Always clamp to the closer wall
+    if (distLeft < distRight) {
+      // Clamp to Left Wall
+      const clampedY = Math.max(0, Math.min(ROOM_SIZE, leftY))
+      const clampedZ = Math.max(0, Math.min(WALL_HEIGHT, leftZ))
+      return { x: 0, y: clampedY, z: clampedZ, wall: 'left' }
+    } else {
+      // Clamp to Right Wall
+      const clampedX = Math.max(0, Math.min(ROOM_SIZE, rightX))
+      const clampedZ = Math.max(0, Math.min(WALL_HEIGHT, rightZ))
+      return { x: clampedX, y: 0, z: clampedZ, wall: 'right' }
+    }
+  }
+
   // Check if a tile position is valid
   const isValidTile = (x: number, y: number, width: number = 1, height: number = 1): boolean => {
     return x >= 0 && y >= 0 && x + width <= ROOM_SIZE && y + height <= ROOM_SIZE
@@ -169,7 +236,29 @@ export default function IsometricRoom({
       const furnitureData = availableItems.find(f => f.id === item.itemId)
       if (!furnitureData) continue
 
-      const basePos = worldToScreen(item.x + furnitureData.width / 2, item.y + furnitureData.height / 2, 0)
+      // Calculate wall safety offset (MUST MATCH DRAWING LOGIC)
+      let wallOffsetX = 0
+      let wallOffsetY = 0
+
+      if (item.x <= 1) wallOffsetX = 0.5
+      if (item.y <= 1) wallOffsetY = 0.4
+      if (item.y <= 1) wallOffsetX = 0.6
+      if (item.x <= 1) wallOffsetY = 0.6
+
+      if (furnitureData.id === 'couch') {
+        if (item.x === 0) wallOffsetX = 0.8
+        if (item.y === 0) wallOffsetY = 0.8
+        if (item.x === 0 && item.y === 0) {
+          wallOffsetX = 0.8
+          wallOffsetY = 0.8
+        }
+      }
+
+      const basePos = worldToScreen(
+        item.x + furnitureData.width / 2 + wallOffsetX,
+        item.y + furnitureData.height / 2 + wallOffsetY,
+        item.z || 0
+      )
 
       // Calculate actual render dimensions (matching the draw logic)
       let renderWidth, renderHeight
@@ -181,14 +270,8 @@ export default function IsometricRoom({
         const baseHeight = (furnitureData.visualHeight || furnitureData.height) * TILE_SIZE * 2
         const imageAspectRatio = img.naturalWidth / img.naturalHeight
 
-        // Apply scale per furniture type (reduced to prevent wall overlap)
-        let imageScale = 2
-        if (furnitureData.id === 'lamp') imageScale = 3
-        if (furnitureData.id === 'bookshelf') imageScale = 3
-        if (furnitureData.id === 'rug') imageScale = 3
-        if (furnitureData.id === 'table') imageScale = 3
-        if (furnitureData.id === 'desk') imageScale = 3
-        if (furnitureData.id === 'sofa') imageScale = 3
+        // Apply scale per furniture type
+        const imageScale = furnitureData.imageScale || 2
 
         if (imageAspectRatio > baseWidth / baseHeight) {
           renderWidth = baseWidth * imageScale * zoom
@@ -307,13 +390,13 @@ export default function IsometricRoom({
         ctx.lineWidth = 1 * zoom
         ctx.stroke()
 
-        // Hover highlight
+        // Hover highlight for placement
         if (hoverTile && hoverTile.x === x && hoverTile.y === y && selectedItemType) {
           const item = availableItems.find(i => i.id === selectedItemType)
           if (item) {
             const isValid = isValidTile(x, y, item.width, item.height) &&
-                           !isWallPosition(x, y) &&
-                           !hasCollision(x, y, item.width, item.height)
+              !isWallPosition(x, y) &&
+              !hasCollision(x, y, item.width, item.height)
 
             ctx.fillStyle = isValid ? 'rgba(50, 205, 50, 0.3)' : 'rgba(255, 0, 0, 0.3)'
             ctx.fill()
@@ -343,9 +426,49 @@ export default function IsometricRoom({
       const furnitureData = availableItems.find(f => f.id === item.itemId)
       if (!furnitureData) return
 
-      const basePos = worldToScreen(item.x + furnitureData.width / 2, item.y + furnitureData.height / 2, 0)
+      // Calculate wall safety offset
+      // If item is close to walls (x=1 or y=1), shift it slightly away
+      let wallOffsetX = 0
+      let wallOffsetY = 0
+
+      if (item.x <= 1) wallOffsetX = 0.5 // Shift away from Left Wall (increased)
+      if (item.y <= 1) wallOffsetY = 0.4 // Shift away from Right Wall
+
+      // Extra safety: When touching Right Wall, ensure we don't clip Left Wall
+      if (item.y <= 1) wallOffsetX = 0.6
+
+      // Extra safety: When touching Left Wall, ensure we don't clip Right Wall
+      if (item.x <= 1) wallOffsetY = 0.6
+
+      // SPECIFIC FIX FOR COUCH OVERFLOW
+      // The couch is large and tends to clip walls in the corner. We apply a stronger offset.
+      if (furnitureData.id === 'couch') {
+        if (item.x === 0) wallOffsetX = 0.8 // Push further from Left Wall
+        if (item.y === 0) wallOffsetY = 0.8 // Push further from Right Wall
+
+        // If in the deep corner (0,0), push it out even more diagonally
+        if (item.x === 0 && item.y === 0) {
+          wallOffsetX = 0.8
+          wallOffsetY = 0.8
+        }
+      }
+
+      const basePos = worldToScreen(
+        item.x + furnitureData.width / 2 + wallOffsetX,
+        item.y + furnitureData.height / 2 + wallOffsetY,
+        item.z || 0
+      )
 
       ctx.save()
+
+      // Draw selection outline/effect around the item image if selected
+      if (item.id === selectedItemId) {
+        // Stronger glow effect to make it visible
+        ctx.shadowColor = 'rgba(102, 51, 153, 1.0)' // Dark Purple (RebeccaPurple)
+        ctx.shadowBlur = 15 * zoom // Increased blur for better visibility
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+      }
 
       const img = loadedImages.get(item.itemId)
 
@@ -373,22 +496,35 @@ export default function IsometricRoom({
 
         // Draw furniture image with preserved aspect ratio
         // Apply scale per furniture type
-        let imageScale = 2
-        if (furnitureData.id === 'lamp') imageScale = 3
-        if (furnitureData.id === 'bookshelf') imageScale = 3
-        if (furnitureData.id === 'rug') imageScale = 3
-        if (furnitureData.id === 'table') imageScale = 3
-        if (furnitureData.id === 'desk') imageScale = 3
-        if (furnitureData.id === 'sofa') imageScale = 3
+        const imageScale = furnitureData.imageScale || 2
 
         // Apply zoom to image scale so images scale with the room
         const scaledWidth = renderWidth * imageScale * zoom
         const scaledHeight = renderHeight * imageScale * zoom
 
-        // Flip when NOT at the left edge of the floor grid (x=1)
-        // x=0 is the wall (blocked), so x=1 is the leftmost valid floor position
-        // Images are flipped by default, and shown normally only at x=1
-        const shouldFlip = item.x !== 1
+        // Smart flipping logic
+        // We want items to face AWAY from the nearest wall
+        // The room has walls at x=0 (Left Wall) and y=0 (Right Wall)
+
+        // Calculate distance to walls
+        const distToLeftWall = item.x
+        const distToRightWall = item.y
+
+        const nativeFacing = furnitureData.facing || 'right'
+        let shouldFlip = false
+
+        // If closer to Left Wall (x < y), we should Face Left (Y-aligned) to run parallel to it
+        // If closer to Right Wall (y < x), we should Face Right (X-aligned) to run parallel to it
+
+        if (distToLeftWall < distToRightWall) {
+          // Closer to Left Wall -> Face Right (Y-aligned) to run parallel to it
+          // If native is Left, we must flip
+          if (nativeFacing === 'left') shouldFlip = true
+        } else {
+          // Closer to Right Wall -> Face Left (X-aligned) to run parallel to it
+          // If native is Right, we must flip
+          if (nativeFacing === 'right') shouldFlip = true
+        }
 
         if (shouldFlip) {
           // Flip horizontally
@@ -444,14 +580,21 @@ export default function IsometricRoom({
     if (hoverTile && selectedItemType) {
       const item = availableItems.find(i => i.id === selectedItemType)
       if (item) {
-        const isValid = isValidTile(hoverTile.x, hoverTile.y, item.width, item.height) &&
-                       !isWallPosition(hoverTile.x, hoverTile.y) &&
-                       !hasCollision(hoverTile.x, hoverTile.y, item.width, item.height)
+        // For wall items, we don't check collision in the same way or need to check isValidTile for grid
+        // But let's keep it simple
+        const isWallItem = item.placementType === 'wall'
+        let isValid = true
+
+        if (!isWallItem) {
+          isValid = isValidTile(hoverTile.x, hoverTile.y, item.width, item.height) &&
+            !isWallPosition(hoverTile.x, hoverTile.y) &&
+            !hasCollision(hoverTile.x, hoverTile.y, item.width, item.height)
+        }
 
         const basePos = worldToScreen(
-          hoverTile.x + item.width / 2,
-          hoverTile.y + item.height / 2,
-          0
+          hoverTile.x + (isWallItem ? 0 : item.width / 2),
+          hoverTile.y + (isWallItem ? 0 : item.height / 2),
+          hoverTile.z || 0
         )
 
         ctx.save()
@@ -466,14 +609,8 @@ export default function IsometricRoom({
           const baseHeight = (item.visualHeight || item.height) * TILE_SIZE * 2
           const imageAspectRatio = img.naturalWidth / img.naturalHeight
 
-          // Apply scale per furniture type (reduced to prevent wall overlap)
-          let imageScale = 2
-          if (item.id === 'lamp') imageScale = 3
-          if (item.id === 'bookshelf') imageScale = 3
-          if (item.id === 'rug') imageScale = 3
-          if (item.id === 'table') imageScale = 3
-          if (item.id === 'desk') imageScale = 3
-          if (item.id === 'sofa') imageScale = 3
+          // Apply scale per furniture type
+          const imageScale = item.imageScale || 2
 
           if (imageAspectRatio > baseWidth / baseHeight) {
             previewWidth = baseWidth * imageScale * zoom
@@ -518,36 +655,69 @@ export default function IsometricRoom({
     const rect = canvas.getBoundingClientRect()
     const screenX = e.clientX - rect.left
     const screenY = e.clientY - rect.top
-    const world = screenToWorld(screenX, screenY)
 
-    // Clamp world coordinates to grid boundaries
-    const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
-    const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+    // Check if we are placing a NEW item (hovering)
+    const selectedItem = selectedItemType ? availableItems.find(i => i.id === selectedItemType) : null
+    const isWallItem = selectedItem?.placementType === 'wall'
 
-    // Update hover tile with clamped coordinates
-    if (isValidTile(clampedX, clampedY)) {
-      setHoverTile({ x: clampedX, y: clampedY })
+    if (isWallItem) {
+      const wallPos = screenToWall(screenX, screenY)
+      if (wallPos.wall !== 'none') {
+        // For wall items, we use floating point coordinates
+        setHoverTile({ x: wallPos.x, y: wallPos.y, z: wallPos.z })
+      } else {
+        setHoverTile(null)
+      }
     } else {
-      setHoverTile(null)
+      const world = screenToWorld(screenX, screenY)
+
+      // Clamp world coordinates to grid boundaries
+      const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+      const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+
+      // Update hover tile with clamped coordinates
+      if (isValidTile(clampedX, clampedY)) {
+        setHoverTile({ x: clampedX, y: clampedY })
+      } else {
+        setHoverTile(null)
+      }
     }
 
-    // Handle dragging
+    // Handle dragging EXISTING items
     if (draggedItem) {
       canvas.style.cursor = 'grabbing'
       const item = placedItems.find(i => i.id === draggedItem)
       const furnitureData = item ? availableItems.find(f => f.id === item.itemId) : null
 
       if (item && furnitureData) {
-        let newX = clampedX - dragOffset.x
-        let newY = clampedY - dragOffset.y
+        // Determine if the dragged item is a wall item or floor item
+        const isDraggedWallItem = furnitureData.placementType === 'wall'
 
-        // Clamp position to stay within grid boundaries (invisible border)
-        newX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newX)))
-        newY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newY)))
+        if (isDraggedWallItem) {
+          // Wall Item Dragging Logic
+          const wallPos = screenToWall(screenX, screenY)
 
-        // Check if position is valid (not on wall and no collision)
-        if (!isWallPosition(newX, newY) && !hasCollision(newX, newY, furnitureData.width, furnitureData.height, draggedItem)) {
-          onMoveItem(draggedItem, newX, newY)
+          // If we are on a valid wall, update position
+          if (wallPos.wall !== 'none') {
+            onMoveItem(draggedItem, wallPos.x, wallPos.y, wallPos.z)
+          }
+        } else {
+          // Floor Item Dragging Logic
+          const world = screenToWorld(screenX, screenY)
+          const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+          const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+
+          let newX = clampedX - dragOffset.x
+          let newY = clampedY - dragOffset.y
+
+          // Clamp position to stay within grid boundaries (invisible border)
+          newX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newX)))
+          newY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newY)))
+
+          // Check if position is valid (not on wall and no collision)
+          if (!isWallPosition(newX, newY) && !hasCollision(newX, newY, furnitureData.width, furnitureData.height, draggedItem)) {
+            onMoveItem(draggedItem, newX, newY)
+          }
         }
       }
     } else {
@@ -574,14 +744,19 @@ export default function IsometricRoom({
     // If in placement mode, place the item
     if (selectedItemType && hoverTile) {
       const item = availableItems.find(i => i.id === selectedItemType)
+      if (!item) return
 
-      // Clamp placement coordinates to grid boundaries
-      const clampedPlaceX = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.x))
-      const clampedPlaceY = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.y))
+      if (item.placementType === 'wall') {
+        // Wall item placement
+        onAddItem(selectedItemType, hoverTile.x, hoverTile.y, hoverTile.z)
+      } else {
+        // Floor item placement
+        const clampedPlaceX = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.x))
+        const clampedPlaceY = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.y))
 
-      // Check if position is valid (not on wall and no collision)
-      if (item && !isWallPosition(clampedPlaceX, clampedPlaceY) && !hasCollision(clampedPlaceX, clampedPlaceY, item.width, item.height)) {
-        onAddItem(selectedItemType, clampedPlaceX, clampedPlaceY)
+        if (!isWallPosition(clampedPlaceX, clampedPlaceY) && !hasCollision(clampedPlaceX, clampedPlaceY, item.width, item.height)) {
+          onAddItem(selectedItemType, clampedPlaceX, clampedPlaceY)
+        }
       }
       return
     }
@@ -590,12 +765,23 @@ export default function IsometricRoom({
     const clickedItem = getItemAtScreenPos(screenX, screenY)
 
     if (clickedItem) {
-      const world = screenToWorld(screenX, screenY)
-      // Clamp world coordinates for drag offset calculation
-      const clampedWorldX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
-      const clampedWorldY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+      // Select the item
+      setSelectedItemId(clickedItem.id)
       setDraggedItem(clickedItem.id)
-      setDragOffset({ x: clampedWorldX - clickedItem.x, y: clampedWorldY - clickedItem.y })
+
+      const furnitureData = availableItems.find(f => f.id === clickedItem.itemId)
+
+      if (furnitureData?.placementType === 'wall') {
+        setDragOffset({ x: 0, y: 0 })
+      } else {
+        const world = screenToWorld(screenX, screenY)
+        const clampedWorldX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+        const clampedWorldY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+
+        setDragOffset({ x: clampedWorldX - clickedItem.x, y: clampedWorldY - clickedItem.y })
+      }
+    } else {
+      setSelectedItemId(null)
     }
   }
 
@@ -611,7 +797,6 @@ export default function IsometricRoom({
     const screenX = e.clientX - rect.left
     const screenY = e.clientY - rect.top
 
-    // Use pixel-perfect detection to find clicked item
     const clickedItem = getItemAtScreenPos(screenX, screenY)
 
     if (clickedItem) {
@@ -628,11 +813,9 @@ export default function IsometricRoom({
     const mouseX = e.clientX - rect.left
     const mouseY = e.clientY - rect.top
 
-    // Zoom in/out with mouse wheel
     const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1
     const newZoom = Math.max(0.3, Math.min(3, zoom * zoomDelta))
 
-    // Zoom towards mouse position
     const zoomRatio = newZoom / zoom
     const newPanX = mouseX - (mouseX - pan.x) * zoomRatio
     const newPanY = mouseY - (mouseY - pan.y) * zoomRatio
@@ -646,7 +829,6 @@ export default function IsometricRoom({
     const canvas = canvasRef.current
     if (!canvas || e.touches.length === 0) return
 
-    // Two-finger pinch to zoom
     if (e.touches.length === 2) {
       const touch1 = e.touches[0]
       const touch2 = e.touches[1]
@@ -665,17 +847,14 @@ export default function IsometricRoom({
     const screenX = touch.clientX - rect.left
     const screenY = touch.clientY - rect.top
 
-    // Check for double tap (remove item)
     const now = Date.now()
-    const TAP_DELAY = 300 // ms
+    const TAP_DELAY = 300
 
     if (lastTapTime && now - lastTapTime < TAP_DELAY && lastTapPos) {
-      // Check if tap is in roughly the same position
       const dist = Math.sqrt(
         Math.pow(screenX - lastTapPos.x, 2) + Math.pow(screenY - lastTapPos.y, 2)
       )
       if (dist < 30) {
-        // Double tap detected
         const clickedItem = getItemAtScreenPos(screenX, screenY)
         if (clickedItem) {
           onRemoveItem(clickedItem.id)
@@ -689,12 +868,10 @@ export default function IsometricRoom({
     setLastTapTime(now)
     setLastTapPos({ x: screenX, y: screenY })
 
-    // Calculate world position for placement
     const world = screenToWorld(screenX, screenY)
     const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
     const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
 
-    // If in placement mode, place the item
     if (selectedItemType) {
       const item = availableItems.find(i => i.id === selectedItemType)
 
@@ -704,16 +881,13 @@ export default function IsometricRoom({
       return
     }
 
-    // Check if touching an item
     const clickedItem = getItemAtScreenPos(screenX, screenY)
 
     if (clickedItem) {
-      // Start dragging item (using the world coordinates we already calculated)
       setDraggedItem(clickedItem.id)
       setDragOffset({ x: clampedX - clickedItem.x, y: clampedY - clickedItem.y })
       setIsPanning(false)
     } else {
-      // Start panning
       setIsPanning(true)
       setPanStart({ x: screenX - pan.x, y: screenY - pan.y })
     }
@@ -723,7 +897,6 @@ export default function IsometricRoom({
     const canvas = canvasRef.current
     if (!canvas || e.touches.length === 0) return
 
-    // Two-finger pinch to zoom
     if (e.touches.length === 2 && lastPinchDistance) {
       const touch1 = e.touches[0]
       const touch2 = e.touches[1]
@@ -736,11 +909,9 @@ export default function IsometricRoom({
       const centerX = ((touch1.clientX + touch2.clientX) / 2) - rect.left
       const centerY = ((touch1.clientY + touch2.clientY) / 2) - rect.top
 
-      // Calculate zoom change
       const zoomDelta = distance / lastPinchDistance
       const newZoom = Math.max(0.3, Math.min(3, zoom * zoomDelta))
 
-      // Zoom towards pinch center
       const zoomRatio = newZoom / zoom
       const newPanX = centerX - (centerX - pan.x) * zoomRatio
       const newPanY = centerY - (centerY - pan.y) * zoomRatio
@@ -756,7 +927,6 @@ export default function IsometricRoom({
     const screenX = touch.clientX - rect.left
     const screenY = touch.clientY - rect.top
 
-    // Handle panning
     if (isPanning && panStart) {
       setPan({
         x: screenX - panStart.x,
@@ -766,19 +936,15 @@ export default function IsometricRoom({
     }
 
     const world = screenToWorld(screenX, screenY)
-
-    // Clamp world coordinates to grid boundaries
     const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
     const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
 
-    // Update hover tile with clamped coordinates
     if (isValidTile(clampedX, clampedY)) {
       setHoverTile({ x: clampedX, y: clampedY })
     } else {
       setHoverTile(null)
     }
 
-    // Handle dragging item
     if (draggedItem) {
       const item = placedItems.find(i => i.id === draggedItem)
       const furnitureData = item ? availableItems.find(f => f.id === item.itemId) : null
@@ -787,11 +953,9 @@ export default function IsometricRoom({
         let newX = clampedX - dragOffset.x
         let newY = clampedY - dragOffset.y
 
-        // Clamp position to stay within grid boundaries
         newX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newX)))
         newY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(newY)))
 
-        // Check if position is valid (not on wall and no collision)
         if (!isWallPosition(newX, newY) && !hasCollision(newX, newY, furnitureData.width, furnitureData.height, draggedItem)) {
           onMoveItem(draggedItem, newX, newY)
         }

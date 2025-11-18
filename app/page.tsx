@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import IsometricRoom from './components/IsometricRoom'
+import ObjectSidebar from './components/ObjectSidebar'
 import type { FurnitureItem, PlacedItem } from '../types'
 
 // Available furniture and decor items (matching Flutter assets)
@@ -15,29 +16,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1,
     visualHeight: 2,
     placementType: 'floor',
-    color: '#8B7355'
-  },
-  {
-    id: 'table',
-    name: 'Table',
-    category: 'furniture',
-    imageUrl: '/images/table.png',
-    width: 1,
-    height: 1,
-    visualHeight: 1,
-    placementType: 'floor',
-    color: '#A0522D'
-  },
-  {
-    id: 'bookshelf',
-    name: 'Bookshelf',
-    category: 'furniture',
-    imageUrl: '/images/bookshelf.png',
-    width: 1,
-    height: 1,
-    visualHeight: 3,
-    placementType: 'floor',
-    color: '#8B4513'
+    color: '#8B7355',
+    imageScale: 1.8,
+    facing: 'left'
   },
   {
     id: 'desk',
@@ -48,7 +29,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1,
     visualHeight: 2,
     placementType: 'floor',
-    color: '#8B6914'
+    color: '#8B6914',
+    imageScale: 3,
+    facing: 'right'
   },
   {
     id: 'sofa',
@@ -59,29 +42,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1,
     visualHeight: 2.5,
     placementType: 'floor',
-    color: '#8B4513'
-  },
-  {
-    id: 'rug',
-    name: 'Rug',
-    category: 'decor',
-    imageUrl: '/images/rug.png',
-    width: 1,
-    height: 1,
-    visualHeight: 0.5,
-    placementType: 'floor',
-    color: '#B22222'
-  },
-  {
-    id: 'lamp',
-    name: 'Lamp',
-    category: 'decor',
-    imageUrl: '/images/lamp.png',
-    width: 1,
-    height: 1,
-    visualHeight: 2,
-    placementType: 'floor',
-    color: '#FFD700'
+    color: '#8B4513',
+    imageScale: 3,
+    facing: 'right'
   },
   {
     id: 'arcade',
@@ -92,7 +55,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1.2,
     visualHeight: 2.8,
     placementType: 'floor',
-    color: '#FF6B6B'
+    color: '#FF6B6B',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'bed',
@@ -103,7 +68,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1.5,
     visualHeight: 1.2,
     placementType: 'floor',
-    color: '#C8A882'
+    color: '#C8A882',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'beemo_box',
@@ -114,7 +81,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 0.8,
     visualHeight: 1,
     placementType: 'floor',
-    color: '#4ECDC4'
+    color: '#4ECDC4',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'chess_table',
@@ -125,7 +94,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1,
     visualHeight: 1.2,
     placementType: 'floor',
-    color: '#8B4513'
+    color: '#8B4513',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'computer',
@@ -136,7 +107,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1,
     visualHeight: 1.5,
     placementType: 'floor',
-    color: '#708090'
+    color: '#708090',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'kitchen',
@@ -147,7 +120,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 3.75,
     visualHeight: 6.25,
     placementType: 'floor',
-    color: '#F5DEB3'
+    color: '#F5DEB3',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'music_box',
@@ -158,7 +133,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 2.1,
     visualHeight: 2.4,
     placementType: 'floor',
-    color: '#DAA520'
+    color: '#DAA520',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'music_system',
@@ -169,7 +146,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 3,
     visualHeight: 5.4,
     placementType: 'floor',
-    color: '#2F4F4F'
+    color: '#2F4F4F',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'music_system_white',
@@ -180,7 +159,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 3,
     visualHeight: 5.4,
     placementType: 'floor',
-    color: '#F5F5F5'
+    color: '#F5F5F5',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'pc_table',
@@ -191,7 +172,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1.2,
     visualHeight: 1.5,
     placementType: 'floor',
-    color: '#696969'
+    color: '#696969',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'piano',
@@ -202,7 +185,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1.5,
     visualHeight: 2.2,
     placementType: 'floor',
-    color: '#000000'
+    color: '#000000',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'plant',
@@ -213,7 +198,9 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 0.8,
     visualHeight: 1.5,
     placementType: 'floor',
-    color: '#228B22'
+    color: '#228B22',
+    imageScale: 2,
+    facing: 'left'
   },
   {
     id: 'tv',
@@ -224,8 +211,75 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     height: 1.2,
     visualHeight: 1.8,
     placementType: 'floor',
-    color: '#000000'
+    color: '#000000',
+    imageScale: 2,
+    facing: 'left'
   },
+  {
+    id: 'mirror',
+    name: 'Mirror',
+    category: 'decor',
+    imageUrl: '/images/mirror.png',
+    width: 1,
+    height: 1,
+    visualHeight: 1,
+    placementType: 'wall',
+    defaultWallHeight: 1.5,
+    imageScale: 1.5,
+    facing: 'left'
+  },
+  {
+    id: 'painting',
+    name: 'Painting',
+    category: 'decor',
+    imageUrl: '/images/painting.png',
+    width: 1,
+    height: 1,
+    visualHeight: 1,
+    placementType: 'wall',
+    defaultWallHeight: 1.5,
+    imageScale: 2.5,
+    facing: 'left'
+  },
+  {
+    id: 'painting_bmo',
+    name: 'BMO Painting',
+    category: 'decor',
+    imageUrl: '/images/painting_bmo.png',
+    width: 1,
+    height: 1,
+    visualHeight: 1,
+    placementType: 'wall',
+    defaultWallHeight: 1.5,
+    imageScale: 1.5,
+    facing: 'left'
+  },
+  {
+    id: 'painting_david',
+    name: 'David Painting',
+    category: 'decor',
+    imageUrl: '/images/painting_david.png',
+    width: 1,
+    height: 1,
+    visualHeight: 1,
+    placementType: 'wall',
+    defaultWallHeight: 1.5,
+    imageScale: 1.5,
+    facing: 'left'
+  },
+  {
+    id: 'painting_creeper',
+    name: 'Creeper Painting',
+    category: 'decor',
+    imageUrl: '/images/painting_creeper.png',
+    width: 1,
+    height: 1,
+    visualHeight: 1,
+    placementType: 'wall',
+    defaultWallHeight: 1.5,
+    imageScale: 1.5,
+    facing: 'left'
+  }
 ]
 
 // Extend Window interface for Flutter WebView communication
@@ -402,7 +456,7 @@ export default function Home() {
     }
   }, []) // Empty dependency array - only run once on mount
 
-  const handleAddItem = (itemId: string, x: number, y: number) => {
+  const handleAddItem = (itemId: string, x: number, y: number, z?: number) => {
     const furnitureData = AVAILABLE_ITEMS.find(item => item.id === itemId)
     if (!furnitureData) return
 
@@ -411,6 +465,7 @@ export default function Home() {
       itemId,
       x,
       y,
+      z,
       rotation: 0,
       placementType: furnitureData.placementType
     }
@@ -424,9 +479,9 @@ export default function Home() {
     })
   }
 
-  const handleMoveItem = (id: string, x: number, y: number) => {
+  const handleMoveItem = (id: string, x: number, y: number, z?: number) => {
     setPlacedItems(items => items.map(item =>
-      item.id === id ? { ...item, x, y } : item
+      item.id === id ? { ...item, x, y, z } : item
     ))
 
     // Notify Flutter about item movement
@@ -434,7 +489,8 @@ export default function Home() {
       type: 'ITEM_MOVED',
       id,
       x,
-      y
+      y,
+      z
     })
   }
 
@@ -459,6 +515,11 @@ export default function Home() {
         onRemoveItem={handleRemoveItem}
         floorColor={floorColor}
         wallColor={wallColor}
+      />
+      <ObjectSidebar
+        items={AVAILABLE_ITEMS}
+        onSelectItem={(id) => setSelectedItemType(id === selectedItemType ? null : id)}
+        selectedItemId={selectedItemType}
       />
     </div>
   )
