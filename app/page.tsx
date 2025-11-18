@@ -326,14 +326,17 @@ export default function Home() {
     top: '#f0e5d0',
     bottom: '#d4c4a8'
   })
+  const [isWebView, setIsWebView] = useState(false)
 
+  // Detect if running in a WebView
+  useEffect(() => {
+    const userAgent = window.navigator.userAgent.toLowerCase()
+    // Check for common WebView indicators or Flutter specific injection
+    const isFlutter = (window as any).flutter_inappwebview || userAgent.includes('wv') || userAgent.includes('flutter')
+    setIsWebView(!!isFlutter)
+  }, [])
   // Expose functions to Flutter WebView
   useEffect(() => {
-    // Function to set selected item from Flutter
-    window.setSelectedItem = (itemId: string) => {
-      setSelectedItemType(itemId)
-    }
-
     // Function to clear selection
     window.clearSelection = () => {
       setSelectedItemType(null)
@@ -440,7 +443,7 @@ export default function Home() {
     return () => {
       window.removeEventListener('message', handleMessage)
     }
-  }, []) // Empty dependency array - only run once on mount
+  }, [placedItems, isReady])
 
   const handleAddItem = (itemId: string, x: number, y: number, z?: number) => {
     const furnitureData = AVAILABLE_ITEMS.find(item => item.id === itemId)
@@ -502,11 +505,13 @@ export default function Home() {
         floorColor={floorColor}
         wallColor={wallColor}
       />
-      <ObjectSidebar
-        items={AVAILABLE_ITEMS}
-        onSelectItem={(id) => setSelectedItemType(id === selectedItemType ? null : id)}
-        selectedItemId={selectedItemType}
-      />
+      {!isWebView && (
+        <ObjectSidebar
+          items={AVAILABLE_ITEMS}
+          onSelectItem={(id) => setSelectedItemType(id === selectedItemType ? null : id)}
+          selectedItemId={selectedItemType}
+        />
+      )}
     </div>
   )
 }

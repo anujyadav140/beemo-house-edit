@@ -30,6 +30,7 @@ export default function IsometricRoom({
   floorColor,
   wallColor
 }: IsometricRoomProps) {
+  console.log('IsometricRoom rendering', { placedItemsCount: placedItems.length, availableItemsCount: availableItems.length })
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [draggedItem, setDraggedItem] = useState<string | null>(null)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
@@ -299,6 +300,41 @@ export default function IsometricRoom({
     return null
   }
 
+  // Check collision for wall items
+  const hasWallCollision = (x: number, y: number, z: number, width: number, height: number, excludeId?: string): boolean => {
+    const isLeftWall = x === 0
+    const isRightWall = y === 0
+
+    return placedItems.some(item => {
+      if (item.id === excludeId) return false
+      const itemData = availableItems.find(i => i.id === item.itemId)
+      if (!itemData || itemData.placementType !== 'wall') return false
+
+      const itemIsLeft = item.x === 0
+      const itemIsRight = item.y === 0
+
+      // Dimensions of the existing item
+      const itemWidth = itemData.width
+      const itemHeight = itemData.visualHeight || itemData.height || 1
+
+      // Check Left Wall Collision (Y-Z plane)
+      if (isLeftWall && itemIsLeft) {
+        const overlapY = (y < item.y + itemWidth) && (y + width > item.y)
+        const overlapZ = (z < (item.z || 0) + itemHeight) && (z + height > (item.z || 0))
+        if (overlapY && overlapZ) return true
+      }
+
+      // Check Right Wall Collision (X-Z plane)
+      if (isRightWall && itemIsRight) {
+        const overlapX = (x < item.x + itemWidth) && (x + width > item.x)
+        const overlapZ = (z < (item.z || 0) + itemHeight) && (z + height > (item.z || 0))
+        if (overlapX && overlapZ) return true
+      }
+
+      return false
+    })
+  }
+
   // Draw the isometric room
   useEffect(() => {
     const canvas = canvasRef.current
@@ -310,6 +346,7 @@ export default function IsometricRoom({
     // Set canvas size
     canvas.width = canvas.offsetWidth
     canvas.height = canvas.offsetHeight
+    console.log('Canvas resized', { width: canvas.width, height: canvas.height })
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
@@ -592,7 +629,12 @@ export default function IsometricRoom({
         const isWallItem = item.placementType === 'wall'
         let isValid = true
 
-        if (!isWallItem) {
+        if (isWallItem) {
+          // Wall item validation
+          const onWall = hoverTile.x === 0 || hoverTile.y === 0
+          const hasCol = hasWallCollision(hoverTile.x, hoverTile.y, hoverTile.z || 0, item.width, item.visualHeight || item.height || 1)
+          isValid = onWall && !hasCol
+        } else {
           isValid = isValidTile(hoverTile.x, hoverTile.y, item.width, item.height) &&
             !isWallPosition(hoverTile.x, hoverTile.y) &&
             !hasCollision(hoverTile.x, hoverTile.y, item.width, item.height)
@@ -756,7 +798,9 @@ export default function IsometricRoom({
 
       if (item.placementType === 'wall') {
         // Wall item placement
-        onAddItem(selectedItemType, hoverTile.x, hoverTile.y, hoverTile.z)
+        if (!hasWallCollision(hoverTile.x, hoverTile.y, hoverTile.z || 0, item.width, item.visualHeight || item.height || 1)) {
+          onAddItem(selectedItemType, hoverTile.x, hoverTile.y, hoverTile.z)
+        }
       } else {
         // Floor item placement
         const clampedPlaceX = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.x))
