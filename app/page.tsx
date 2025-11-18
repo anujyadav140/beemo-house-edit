@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import IsometricRoom from './components/IsometricRoom'
-import type { FurnitureItem, PlacedItem } from '../types'
+import ObjectSidebar from './components/ObjectSidebar'
+import { FurnitureItem, PlacedItem, PlacementType } from '@/types'
 
-// Available furniture and decor items (matching Flutter assets)
 const AVAILABLE_ITEMS: FurnitureItem[] = [
   {
     id: 'couch',
@@ -29,19 +29,6 @@ const AVAILABLE_ITEMS: FurnitureItem[] = [
     visualHeight: 2,
     placementType: 'floor',
     color: '#8B6914',
-    imageScale: 3,
-    facing: 'right'
-  },
-  {
-    id: 'sofa',
-    name: 'Sofa',
-    category: 'furniture',
-    imageUrl: '/images/sofa.png',
-    width: 1,
-    height: 1,
-    visualHeight: 2.5,
-    placementType: 'floor',
-    color: '#8B4513',
     imageScale: 3,
     facing: 'right'
   },
@@ -514,6 +501,11 @@ export default function Home() {
         onRemoveItem={handleRemoveItem}
         floorColor={floorColor}
         wallColor={wallColor}
+      />
+      <ObjectSidebar
+        items={AVAILABLE_ITEMS}
+        onSelectItem={(id) => setSelectedItemType(id === selectedItemType ? null : id)}
+        selectedItemId={selectedItemType}
       />
     </div>
   )

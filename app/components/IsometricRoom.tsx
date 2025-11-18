@@ -665,12 +665,13 @@ export default function IsometricRoom({
 
     // Check if we are placing a NEW item (hovering)
     const selectedItem = selectedItemType ? availableItems.find(i => i.id === selectedItemType) : null
-    const isWallItem = selectedItem?.placementType === 'wall'
+    // Force wall item detection for known wall items if placementType check fails
+    const isWallItem = selectedItem?.placementType === 'wall' ||
+      (selectedItemType && (selectedItemType.includes('painting') || selectedItemType.includes('mirror')))
 
     if (isWallItem) {
       const wallPos = screenToWall(screenX, screenY)
       if (wallPos.wall !== 'none') {
-        // For wall items, we use floating point coordinates
         setHoverTile({ x: wallPos.x, y: wallPos.y, z: wallPos.z })
       } else {
         setHoverTile(null)
