@@ -237,6 +237,41 @@ body {
   background: #444;
 }
 
+.nav-btn.active {
+  background: #FF1493;
+  box-shadow: 0 6px 12px rgba(255, 20, 147, 0.6);
+}
+
+/* Object Sidebar */
+.object-sidebar {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 300px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+.sidebar-header h3 {
+  font-size: 24px;
+  color: #333;
+  font-weight: 700;
+}
+
+.items-container {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  padding: 5px;
+}
+
+/* Custom Scrollbar for sidebar */
+.items-container::-webkit-scrollbar {
+  width: 6px;
+}
 
 .items-container::-webkit-scrollbar-track {
   background: transparent;
@@ -300,11 +335,4 @@ body {
   font-weight: 600;
   color: #444;
   text-align: center;
-}
-
-/* Responsive Design: Hide object sidebar on mobile screens */
-@media (max-width: 768px) {
-  .object-sidebar {
-    display: none !important;
-  }
 }
