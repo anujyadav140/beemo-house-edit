@@ -251,18 +251,6 @@ body {
   width: 300px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  z-index: 100;
-  padding: 20px;
-  border-left: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.sidebar-header {
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #eee;
 }
 
 .sidebar-header h3 {
