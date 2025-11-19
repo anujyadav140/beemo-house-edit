@@ -237,29 +237,6 @@ body {
   background: #444;
 }
 
-.nav-btn.active {
-  background: #FF1493;
-  box-shadow: 0 6px 12px rgba(255, 20, 147, 0.6);
-}
-
-/* Object Sidebar */
-.object-sidebar {
-  position: absolute;
-}
-
-.items-container {
-  flex: 1;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-  padding: 5px;
-}
-
-/* Custom Scrollbar for sidebar */
-.items-container::-webkit-scrollbar {
-  width: 6px;
-}
 
 .items-container::-webkit-scrollbar-track {
   background: transparent;
