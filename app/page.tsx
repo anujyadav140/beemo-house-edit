@@ -334,12 +334,24 @@ export default function Home() {
   const [firebaseInitialized, setFirebaseInitialized] = useState(false)
   const isLoadingFromFirebase = useRef(false)
 
-  // Detect if running in a WebView
+  // Detect if running in a WebView and check for URL parameters
   useEffect(() => {
     const userAgent = window.navigator.userAgent.toLowerCase()
     // Check for common WebView indicators or Flutter specific injection
     const isFlutter = (window as any).flutter_inappwebview || userAgent.includes('wv') || userAgent.includes('flutter')
     setIsWebView(!!isFlutter)
+
+    // Check URL for houseId parameter (for direct browser testing)
+    const urlParams = new URLSearchParams(window.location.search)
+    const urlHouseId = urlParams.get('houseId')
+    const urlRoomName = urlParams.get('roomName')
+
+    if (urlHouseId) {
+      console.log('🌐 Got houseId from URL:', urlHouseId)
+      setHouseId(urlHouseId)
+      setRoomName(urlRoomName || 'living_room')
+      setIsReady(true)
+    }
   }, [])
 
   // Debug: Log when selectedItemType changes
@@ -349,14 +361,20 @@ export default function Home() {
 
   // Load objects from Firebase when houseId and roomName are available
   useEffect(() => {
-    if (!houseId || !roomName) return
+    console.log('🔍 DEBUG: Load effect triggered. houseId:', houseId, 'roomName:', roomName)
 
-    console.log(`🔥 Loading room state from Firebase: ${houseId}/${roomName}`)
+    if (!houseId || !roomName) {
+      console.log('⏭️ Skipping Firebase load - missing houseId or roomName')
+      return
+    }
+
+    console.log(`🔥🔥🔥 SETTING UP Firebase listener: houses/${houseId}/rooms/${roomName}`)
 
     const roomDocRef = doc(db, 'houses', houseId, 'rooms', roomName)
 
     // Set up real-time listener
     const unsubscribe = onSnapshot(roomDocRef, (docSnapshot) => {
+      console.log('📡 Firebase snapshot received!')
       isLoadingFromFirebase.current = true
 
       if (docSnapshot.exists()) {
@@ -365,7 +383,7 @@ export default function Home() {
         const floorColorData = data.floor_color || '#f5e6d3'
         const wallColorData = data.wall_color || '#e8dcc8'
 
-        console.log(`✅ Loaded ${furnitureItems.length} items from Firebase`)
+        console.log(`✅✅✅ Loaded ${furnitureItems.length} items from Firebase:`, furnitureItems)
         setPlacedItems(furnitureItems)
 
         // Set floor color
@@ -404,7 +422,17 @@ export default function Home() {
 
   // Save objects to Firebase when they change (debounced)
   useEffect(() => {
-    if (!houseId || !roomName || !firebaseInitialized) return
+    console.log('🔍 DEBUG: Save effect triggered')
+    console.log('  - houseId:', houseId)
+    console.log('  - roomName:', roomName)
+    console.log('  - firebaseInitialized:', firebaseInitialized)
+    console.log('  - placedItems count:', placedItems.length)
+    console.log('  - isLoadingFromFirebase.current:', isLoadingFromFirebase.current)
+
+    if (!houseId || !roomName || !firebaseInitialized) {
+      console.log('⏭️ Skipping save - missing houseId, roomName, or Firebase not initialized')
+      return
+    }
 
     // Don't save if currently loading from Firebase (prevents circular updates)
     if (isLoadingFromFirebase.current) {
@@ -412,19 +440,25 @@ export default function Home() {
       return
     }
 
+    console.log('⏱️  Starting 500ms debounce timer for Firebase save...')
+
     const saveTimeout = setTimeout(async () => {
       try {
         const roomDocRef = doc(db, 'houses', houseId, 'rooms', roomName)
-        await setDoc(roomDocRef, {
+        const dataToSave = {
           furniture_items: placedItems,
           floor_color: floorColor.light,
           wall_color: wallColor.base,
           last_modified: new Date().toISOString()
-        }, { merge: true })
+        }
 
-        console.log(`💾 Saved ${placedItems.length} items to Firebase`)
+        console.log(`💾💾💾 SAVING to Firebase houses/${houseId}/rooms/${roomName}:`, dataToSave)
+
+        await setDoc(roomDocRef, dataToSave, { merge: true })
+
+        console.log(`✅✅✅ SUCCESSFULLY SAVED ${placedItems.length} items to Firebase!`)
       } catch (error) {
-        console.error('❌ Error saving to Firebase:', error)
+        console.error('❌❌❌ ERROR saving to Firebase:', error)
       }
     }, 500) // Debounce saves by 500ms
 
@@ -460,11 +494,16 @@ export default function Home() {
         switch (data.type) {
           case 'INIT':
             // Initialize with houseId and roomName from Flutter
+            console.log('🔍 DEBUG: Received message type INIT')
+            console.log('🔍 DEBUG: data =', JSON.stringify(data))
             if (data.houseId) {
-              console.log('🏠 Received INIT from Flutter:', data.houseId, data.roomName || 'living_room')
+              console.log('✅✅✅ RECEIVED INIT from Flutter! houseId:', data.houseId, 'roomName:', data.roomName || 'living_room')
               setHouseId(data.houseId)
               setRoomName(data.roomName || 'living_room')
               setIsReady(true)
+              console.log('✅ State updated: houseId and roomName set')
+            } else {
+              console.error('❌ INIT message received but NO houseId in data!')
             }
             break
           case 'SELECT_ITEM':
