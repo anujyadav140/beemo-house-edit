@@ -342,6 +342,11 @@ export default function Home() {
     setIsWebView(!!isFlutter)
   }, [])
 
+  // Debug: Log when selectedItemType changes
+  useEffect(() => {
+    console.log('🔄 selectedItemType changed to:', selectedItemType)
+  }, [selectedItemType])
+
   // Load objects from Firebase when houseId and roomName are available
   useEffect(() => {
     if (!houseId || !roomName) return
@@ -464,6 +469,7 @@ export default function Home() {
             break
           case 'SELECT_ITEM':
             if (data.itemId) {
+              console.log('📝 SELECT_ITEM received:', data.itemId)
               setSelectedItemType(data.itemId)
             }
             break
@@ -548,8 +554,12 @@ export default function Home() {
   }, [placedItems, isReady])
 
   const handleAddItem = (itemId: string, x: number, y: number, z?: number) => {
+    console.log('🎯 handleAddItem called:', { itemId, x, y, z })
     const furnitureData = AVAILABLE_ITEMS.find(item => item.id === itemId)
-    if (!furnitureData) return
+    if (!furnitureData) {
+      console.error('❌ Furniture data not found for:', itemId)
+      return
+    }
 
     const newItem: PlacedItem = {
       id: `${itemId}-${Date.now()}`,
@@ -560,6 +570,7 @@ export default function Home() {
       rotation: 0,
       placementType: furnitureData.placementType
     }
+    console.log('✅ Adding new item:', newItem)
     setPlacedItems(items => [...items, newItem])
     setSelectedItemType(null)
 

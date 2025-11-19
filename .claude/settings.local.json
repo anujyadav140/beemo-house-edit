@@ -8,7 +8,10 @@
       "Bash(npm run build:*)",
       "Bash(flutter analyze:*)",
       "Bash(flutter run)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(dir:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(firebase use:*)"
     ],
     "deny": [],
     "ask": []

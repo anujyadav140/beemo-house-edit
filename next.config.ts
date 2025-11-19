@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   } as any,
+  // Enable static export for Firebase Hosting
+  output: 'export',
+  // Disable image optimization for static export
+  images: {
+    unoptimized: true,
+  },
 }
 
 export default nextConfig
