@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import IsometricRoom from './components/IsometricRoom'
 import ObjectSidebar from './components/ObjectSidebar'
 import { FurnitureItem, PlacedItem, PlacementType } from '@/types'
+import { db } from '@/lib/firebase'
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore'
 
 const AVAILABLE_ITEMS: FurnitureItem[] = [
   {
@@ -327,6 +329,10 @@ export default function Home() {
     bottom: '#d4c4a8'
   })
   const [isWebView, setIsWebView] = useState(false)
+  const [houseId, setHouseId] = useState<string | null>(null)
+  const [roomName, setRoomName] = useState<string>('living_room')
+  const [firebaseInitialized, setFirebaseInitialized] = useState(false)
+  const isLoadingFromFirebase = useRef(false)
 
   // Detect if running in a WebView
   useEffect(() => {
@@ -335,6 +341,90 @@ export default function Home() {
     const isFlutter = (window as any).flutter_inappwebview || userAgent.includes('wv') || userAgent.includes('flutter')
     setIsWebView(!!isFlutter)
   }, [])
+
+  // Load objects from Firebase when houseId and roomName are available
+  useEffect(() => {
+    if (!houseId || !roomName) return
+
+    console.log(`🔥 Loading room state from Firebase: ${houseId}/${roomName}`)
+
+    const roomDocRef = doc(db, 'houses', houseId, 'rooms', roomName)
+
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(roomDocRef, (docSnapshot) => {
+      isLoadingFromFirebase.current = true
+
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data()
+        const furnitureItems = data.furniture_items || []
+        const floorColorData = data.floor_color || '#f5e6d3'
+        const wallColorData = data.wall_color || '#e8dcc8'
+
+        console.log(`✅ Loaded ${furnitureItems.length} items from Firebase`)
+        setPlacedItems(furnitureItems)
+
+        // Set floor color
+        setFloorColor({
+          light: floorColorData,
+          dark: adjustColorBrightness(floorColorData, -0.15)
+        })
+
+        // Set wall color
+        const topColor = adjustColorBrightness(wallColorData, 0.1)
+        const bottomColor = adjustColorBrightness(wallColorData, -0.1)
+        setWallColor({
+          base: wallColorData,
+          top: topColor,
+          bottom: bottomColor
+        })
+
+        setFirebaseInitialized(true)
+      } else {
+        console.log('📭 No room data found in Firebase, starting fresh')
+        setFirebaseInitialized(true)
+      }
+
+      // Reset the loading flag after a short delay to allow React to update
+      setTimeout(() => {
+        isLoadingFromFirebase.current = false
+      }, 100)
+    }, (error) => {
+      console.error('❌ Error loading from Firebase:', error)
+      setFirebaseInitialized(true)
+      isLoadingFromFirebase.current = false
+    })
+
+    return () => unsubscribe()
+  }, [houseId, roomName])
+
+  // Save objects to Firebase when they change (debounced)
+  useEffect(() => {
+    if (!houseId || !roomName || !firebaseInitialized) return
+
+    // Don't save if currently loading from Firebase (prevents circular updates)
+    if (isLoadingFromFirebase.current) {
+      console.log('⏸️  Skipping save - currently loading from Firebase')
+      return
+    }
+
+    const saveTimeout = setTimeout(async () => {
+      try {
+        const roomDocRef = doc(db, 'houses', houseId, 'rooms', roomName)
+        await setDoc(roomDocRef, {
+          furniture_items: placedItems,
+          floor_color: floorColor.light,
+          wall_color: wallColor.base,
+          last_modified: new Date().toISOString()
+        }, { merge: true })
+
+        console.log(`💾 Saved ${placedItems.length} items to Firebase`)
+      } catch (error) {
+        console.error('❌ Error saving to Firebase:', error)
+      }
+    }, 500) // Debounce saves by 500ms
+
+    return () => clearTimeout(saveTimeout)
+  }, [placedItems, houseId, roomName, floorColor, wallColor, firebaseInitialized])
   // Expose functions to Flutter WebView
   useEffect(() => {
     // Function to clear selection
@@ -363,6 +453,15 @@ export default function Home() {
         const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data
 
         switch (data.type) {
+          case 'INIT':
+            // Initialize with houseId and roomName from Flutter
+            if (data.houseId) {
+              console.log('🏠 Received INIT from Flutter:', data.houseId, data.roomName || 'living_room')
+              setHouseId(data.houseId)
+              setRoomName(data.roomName || 'living_room')
+              setIsReady(true)
+            }
+            break
           case 'SELECT_ITEM':
             if (data.itemId) {
               setSelectedItemType(data.itemId)
@@ -388,16 +487,19 @@ export default function Home() {
             })
             break
           case 'LOAD_STATE':
-            // Load state sent from Flutter
-            if (data.items && Array.isArray(data.items)) {
+            // Accept houseId and roomName from LOAD_STATE message (legacy support)
+            if (data.houseId) {
+              console.log('🏠 Received houseId from LOAD_STATE:', data.houseId)
+              setHouseId(data.houseId)
+              setRoomName(data.currentRoom || 'living_room')
+            }
+            // Note: We no longer directly set placedItems here since Firebase will handle it
+            // But keep backward compatibility if Firebase data doesn't exist
+            if (data.items && Array.isArray(data.items) && !houseId) {
               setPlacedItems(data.items)
-              setIsReady(true)
-              console.log('✅ Loaded state from Flutter:', data.items.length, 'items')
+              console.log('✅ Loaded state from Flutter (fallback):', data.items.length, 'items')
             }
-            if (data.currentRoom) {
-              // Can be used to sync current room if needed
-              console.log('📍 Current room:', data.currentRoom)
-            }
+            setIsReady(true)
             break
           case 'CHANGE_FLOOR_COLOR':
             // Change floor color sent from Flutter
