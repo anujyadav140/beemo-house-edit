@@ -245,18 +245,6 @@ body {
 /* Object Sidebar */
 .object-sidebar {
   position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 300px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-}
-
-.sidebar-header h3 {
-  font-size: 24px;
-  color: #333;
-  font-weight: 700;
 }
 
 .items-container {
