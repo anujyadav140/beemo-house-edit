@@ -792,22 +792,43 @@ export default function IsometricRoom({
     const screenY = e.clientY - rect.top
 
     // If in placement mode, place the item
-    if (selectedItemType && hoverTile) {
+    if (selectedItemType) {
+      console.log('🎯 Mouse placement mode active for:', selectedItemType)
       const item = availableItems.find(i => i.id === selectedItemType)
-      if (!item) return
+      if (!item) {
+        console.error('❌ Item not found:', selectedItemType)
+        return
+      }
 
       if (item.placementType === 'wall') {
         // Wall item placement
-        if (!hasWallCollision(hoverTile.x, hoverTile.y, hoverTile.z || 0, item.width, item.visualHeight || item.height || 1)) {
-          onAddItem(selectedItemType, hoverTile.x, hoverTile.y, hoverTile.z)
+        const wallPos = screenToWall(screenX, screenY)
+        console.log('🖼️ Wall placement attempt:', wallPos)
+        if (wallPos.wall !== 'none' && !hasWallCollision(wallPos.x, wallPos.y, wallPos.z || 0, item.width, item.visualHeight || item.height || 1)) {
+          console.log('✅ Placing wall item at:', wallPos)
+          onAddItem(selectedItemType, wallPos.x, wallPos.y, wallPos.z)
+        } else {
+          console.warn('⚠️ Wall placement validation failed')
         }
       } else {
         // Floor item placement
-        const clampedPlaceX = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.x))
-        const clampedPlaceY = Math.max(0, Math.min(ROOM_SIZE - 1, hoverTile.y))
+        const world = screenToWorld(screenX, screenY)
+        const clampedPlaceX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+        const clampedPlaceY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
 
-        if (!isWallPosition(clampedPlaceX, clampedPlaceY) && !hasCollision(clampedPlaceX, clampedPlaceY, item.width, item.height)) {
+        console.log('🏠 Floor placement attempt at:', { x: clampedPlaceX, y: clampedPlaceY })
+
+        const validTile = isValidTile(clampedPlaceX, clampedPlaceY)
+        const wallPos = isWallPosition(clampedPlaceX, clampedPlaceY)
+        const collision = hasCollision(clampedPlaceX, clampedPlaceY, item.width, item.height)
+
+        console.log('Validation:', { validTile, wallPos, collision })
+
+        if (validTile && !wallPos && !collision) {
+          console.log('✅ Placing floor item at:', { x: clampedPlaceX, y: clampedPlaceY })
           onAddItem(selectedItemType, clampedPlaceX, clampedPlaceY)
+        } else {
+          console.warn('⚠️ Floor placement validation failed:', { validTile, isWallPosition: wallPos, hasCollision: collision })
         }
       }
       return
@@ -899,6 +920,60 @@ export default function IsometricRoom({
     const screenX = touch.clientX - rect.left
     const screenY = touch.clientY - rect.top
 
+    // Placement Logic - Handle FIRST before double-tap detection
+    if (selectedItemType) {
+      console.log('🎯 Placement mode active for:', selectedItemType)
+      const item = availableItems.find(i => i.id === selectedItemType)
+      if (!item) {
+        console.error('❌ Item not found:', selectedItemType)
+        return
+      }
+
+      // Update hover tile to show preview immediately
+      const isWallItem = item.placementType === 'wall' ||
+        (selectedItemType.includes('painting') || selectedItemType.includes('mirror'))
+
+      if (isWallItem) {
+        const wallPos = screenToWall(screenX, screenY)
+        console.log('🖼️ Wall placement attempt:', wallPos)
+        if (wallPos.wall !== 'none') {
+          setHoverTile({ x: wallPos.x, y: wallPos.y, z: wallPos.z })
+          if (!hasWallCollision(wallPos.x, wallPos.y, wallPos.z, item.width, item.visualHeight || item.height || 1)) {
+            console.log('✅ Placing wall item at:', wallPos)
+            onAddItem(selectedItemType, wallPos.x, wallPos.y, wallPos.z)
+          } else {
+            console.warn('⚠️ Wall collision detected')
+          }
+        } else {
+          console.warn('⚠️ Not on a valid wall')
+        }
+      } else {
+        // Floor item placement
+        const world = screenToWorld(screenX, screenY)
+        const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
+        const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
+
+        console.log('🏠 Floor placement attempt at:', { x: clampedX, y: clampedY })
+
+        // Update hover tile immediately to show preview
+        setHoverTile({ x: clampedX, y: clampedY })
+
+        const validTile = isValidTile(clampedX, clampedY)
+        const wallPos = isWallPosition(clampedX, clampedY)
+        const collision = hasCollision(clampedX, clampedY, item.width, item.height)
+
+        console.log('Validation:', { validTile, wallPos, collision })
+
+        if (validTile && !wallPos && !collision) {
+          console.log('✅ Placing floor item at:', { x: clampedX, y: clampedY })
+          onAddItem(selectedItemType, clampedX, clampedY)
+        } else {
+          console.warn('⚠️ Placement validation failed:', { validTile, isWallPosition: wallPos, hasCollision: collision })
+        }
+      }
+      return
+    }
+
     const now = Date.now()
     const TAP_DELAY = 300
 
@@ -919,32 +994,6 @@ export default function IsometricRoom({
 
     setLastTapTime(now)
     setLastTapPos({ x: screenX, y: screenY })
-
-    // Placement Logic
-    if (selectedItemType) {
-      const item = availableItems.find(i => i.id === selectedItemType)
-      if (!item) return
-
-      if (item.placementType === 'wall') {
-        // Wall item placement
-        const wallPos = screenToWall(screenX, screenY)
-        if (wallPos.wall !== 'none') {
-          if (!hasWallCollision(wallPos.x, wallPos.y, wallPos.z, item.width, item.visualHeight || item.height || 1)) {
-            onAddItem(selectedItemType, wallPos.x, wallPos.y, wallPos.z)
-          }
-        }
-      } else {
-        // Floor item placement
-        const world = screenToWorld(screenX, screenY)
-        const clampedX = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.x)))
-        const clampedY = Math.max(0, Math.min(ROOM_SIZE - 1, Math.floor(world.y)))
-
-        if (isValidTile(clampedX, clampedY) && !isWallPosition(clampedX, clampedY) && !hasCollision(clampedX, clampedY, item.width, item.height)) {
-          onAddItem(selectedItemType, clampedX, clampedY)
-        }
-      }
-      return
-    }
 
     // Selection / Dragging Logic
     const clickedItem = getItemAtScreenPos(screenX, screenY)

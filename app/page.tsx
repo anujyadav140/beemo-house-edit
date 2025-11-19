@@ -470,7 +470,11 @@ export default function Home() {
           case 'SELECT_ITEM':
             if (data.itemId) {
               console.log('📝 SELECT_ITEM received:', data.itemId)
+              console.log('🔄 Setting selectedItemType to:', data.itemId)
               setSelectedItemType(data.itemId)
+              console.log('✅ selectedItemType has been set')
+            } else {
+              console.warn('⚠️ SELECT_ITEM received but no itemId provided')
             }
             break
           case 'CLEAR_SELECTION':
