@@ -324,3 +324,10 @@ body {
   color: #444;
   text-align: center;
 }
+
+/* Responsive Design: Hide object sidebar on mobile screens */
+@media (max-width: 768px) {
+  .object-sidebar {
+    display: none !important;
+  }
+}
